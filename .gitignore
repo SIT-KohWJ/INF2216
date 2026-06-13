@@ -1,3 +1,31 @@
+# ── Secrets — NEVER commit these ────────────────────────────────────────────
 .env
 *.env
 !.env.example
+*.key
+*.pem
+secrets/
+
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# ── Docker / Postgres local data ────────────────────────────────────────────
+postgres_data/
+*.sql.bak
+
+# ── Uploaded evidence (never commit user data) ──────────────────────────────
+uploads/
+instance/
+
+# ── OS / IDE ────────────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/
+*.log
