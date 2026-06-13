@@ -1,0 +1,33 @@
+# Local development compose (laptops).
+# Run with the default command:  docker compose up -d
+#
+# Dev-friendly counterpart to compose.prod.yaml (which is for the shared EC2
+# server). Each developer runs their OWN local database from this file.
+#
+# NOTE: the host port is 5433 (not 5432) on purpose — many machines already run
+# a native Postgres on 5432, so 5433 avoids the clash. Connect your local tools
+# / app to localhost:5433. (Inside docker, Postgres is still on 5432.)
+
+services:
+
+  db:
+    image: postgres:16-alpine
+    container_name: sitinform_db_local
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB:       ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql   # runs ONCE on first boot
+    ports:
+      - "5433:5432"        # host 5433 -> container 5432 (avoids native-Postgres clash)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

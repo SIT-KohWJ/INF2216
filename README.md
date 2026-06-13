@@ -95,6 +95,38 @@ The sprint is complete only when **every** story meets the Definition of Done, a
 
 ---
 
+## Getting started
+
+The application stack runs in Docker. PostgreSQL runs in two places — each developer runs their own copy locally, and one shared instance runs on the team's EC2 server for integration testing and the demo. Both use the same schema (`scripts/init.sql`) but hold separate data.
+
+### Prerequisites
+- Docker and Docker Compose (Docker Desktop on macOS/Windows; Docker Engine on the Linux VM)
+
+### Setup files in the repo
+| File | Purpose |
+|---|---|
+| `compose.yaml` | Local development setup (your laptop) |
+| `compose.prod.yaml` | Shared EC2 server setup (hardened) |
+| `scripts/init.sql` | Database schema — creates all 8 tables on first boot |
+| `.env.example` | Template for environment variables (safe to commit) |
+| `.env` | Real secrets — **never committed** (git-ignored) |
+
+### Local development (compose.yaml)
+Each person runs their own local database:
+
+```bash
+git pull
+cp .env.example .env        # fill in your own local values (throwaway keys are fine)
+docker compose up -d
+docker compose exec db psql -U sitinform_user -d sitinform_db -c "\dt"
+```
+
+The last command should list all 8 tables. The local database is exposed on host port **5433** (not 5432) to avoid clashing with any native PostgreSQL already installed on your machine — so connect your app and database tools to `localhost:5433`. Inside Docker, Postgres is still on 5432.
+
+> Each developer fills in their own `.env` from `.env.example`. Never commit `.env` — it holds the database password and cryptographic keys and is git-ignored.
+
+---
+
 ## Security architecture (reference)
 
 | Concern | Technology |
