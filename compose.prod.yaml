@@ -33,39 +33,39 @@ services:
       retries: 5
 
   # ── Flask app (add once you have app code + a Dockerfile) ───────────────────
-  # web:
-  #   build: .
-  #   container_name: sitinform_web
-  #   restart: always
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #   environment:
-  #     DATABASE_URL:         postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-  #     SECRET_KEY:           ${SECRET_KEY}
-  #     HMAC_SECRET_KEY:      ${HMAC_SECRET_KEY}
-  #     FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
-  #     FLASK_ENV:            production
-  #   expose:
-  #     - "5000"          # internal only; nginx reaches it over the network
-  #   networks:
-  #     - backend
+  web:
+    build: .
+    container_name: sitinform_web
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL:         postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      SECRET_KEY:           ${SECRET_KEY}
+      HMAC_SECRET_KEY:      ${HMAC_SECRET_KEY}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
+      FLASK_ENV:            production
+    expose:
+      - "5000"             # internal only; nginx reaches it over the network
+    networks:
+      - backend
 
-  # ── Nginx reverse proxy / TLS termination (the only public service) ─────────
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: sitinform_nginx
-  #   restart: always
-  #   depends_on:
-  #     - web
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx/conf.d:/etc/nginx/conf.d:ro
-  #     - ./certs:/etc/nginx/certs:ro
-  #   networks:
-  #     - backend
+  nginx:
+    image: nginx:alpine
+    container_name: sitinform_nginx
+    restart: always
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certs:/etc/nginx/certs:ro
+    networks:
+      - backend
+
 
 networks:
   backend:

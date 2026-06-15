@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Login - SITinform{% endblock %}
+{% block content %}
+<h1>Login</h1>
+<form method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Email <input type="email" name="email" required></label>
+  <label>Password <input type="password" name="password" required></label>
+  <button type="submit">Sign in</button>
+</form>
+{% endblock %}

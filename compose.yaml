@@ -1,15 +1,16 @@
 # Local development compose (laptops).
-# Run with the default command:  docker compose up -d
+# Run with:  docker compose up -d
 #
-# Dev-friendly counterpart to compose.prod.yaml (which is for the shared EC2
-# server). Each developer runs their OWN local database from this file.
+# Counterpart to compose.prod.yaml (the shared EC2 server). Each developer runs
+# their OWN local database + app from this single file.
 #
-# NOTE: the host port is 5433 (not 5432) on purpose — many machines already run
-# a native Postgres on 5432, so 5433 avoids the clash. Connect your local tools
-# / app to localhost:5433. (Inside docker, Postgres is still on 5432.)
-
+# Ports on your laptop:
+#   - Postgres -> localhost:5433  (5432 is often taken by a native Postgres)
+#   - Flask    -> localhost:5001  (5000 is taken by AirPlay Receiver on macOS)
+# Inside the docker network the app reaches Postgres at db:5432.
+ 
 services:
-
+ 
   db:
     image: postgres:16-alpine
     container_name: sitinform_db_local
@@ -28,6 +29,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
+ 
+  web:
+    build: .
+    container_name: sitinform_web_local
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      FLASK_ENV: development
+      # app talks to Postgres over the docker network (db:5432, NOT the 5433 host port)
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    ports:
+      - "5001:5000"        # open http://localhost:5001 (5000 = AirPlay on macOS)
+    volumes:
+      - .:/app             # live code reload during dev
+ 
 volumes:
   postgres_data:

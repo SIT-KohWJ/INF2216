@@ -1,0 +1,24 @@
+# Web framework + WSGI server
+Flask==3.1.0
+gunicorn==23.0.0
+
+# Database & ORM (PostgreSQL)
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.36
+psycopg2-binary==2.9.10
+
+# Security middleware
+Flask-WTF==1.2.2          # CSRF protection (B5)
+Flask-Limiter==3.8.0      # per-IP rate limiting (C1, C2)
+
+# Auth & crypto
+PyJWT==2.10.1             # session tokens (D-series)
+bcrypt==4.2.1             # password hashing (A1)
+cryptography==44.0.0      # AES-256-GCM field encryption (A3)
+
+# Input safety / file validation
+bleach==6.2.0             # XSS sanitisation (B2)
+python-magic==0.4.27      # magic-byte MIME validation (B3, B7)
+
+# Local dev convenience
+python-dotenv==1.0.1

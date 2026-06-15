@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Submit a report{% endblock %}
+{% block content %}
+<h1>Submit an anonymous report</h1>
+<form method="post" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Title <input name="title" required></label>
+  <label>Category <input name="category" required></label>
+  <label>Description <textarea name="description" required></textarea></label>
+  <label>Evidence (PDF/DOCX/PNG/JPG, max 10MB) <input type="file" name="evidence"></label>
+  <button type="submit">Submit</button>
+</form>
+{% endblock %}
