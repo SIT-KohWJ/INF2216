@@ -1,0 +1,125 @@
+name: CI
+
+# Runs on every PR into develop/main (feature|securityfeature|enhancement|bugfix -> develop,
+# and develop -> main) and on direct pushes to those two integration branches.
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# Cancel an in-progress run if the same branch is pushed again.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege (A08 – CI/CD integrity). Jobs get read-only repo access.
+permissions:
+  contents: read
+
+jobs:
+  # ── Code style ────────────────────────────────────────────────────────────
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Ruff lint
+        run: ruff check .
+
+  # ── Unit / smoke tests ────────────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # CI-only throwaway values — never reuse real keys here.
+      SECRET_KEY: ci-secret-key
+      HMAC_SECRET_KEY: ci-hmac-key
+      FIELD_ENCRYPTION_KEY: ci-field-encryption-key
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      FLASK_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      # python-magic (B3/B7 magic-byte checks) needs the libmagic system library.
+      - name: Install libmagic
+        run: sudo apt-get update && sudo apt-get install -y libmagic1
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run pytest
+        run: pytest -q
+
+  # ── Secret scanning (hardcoded credentials) ───────────────────────────────
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so gitleaks can scan all commits
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Note: gitleaks-action requires GITLEAKS_LICENSE only for GitHub *organizations*.
+          # If your team repo is under an org, add the free license as a secret and uncomment:
+          # GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  # ── SAST (Python static analysis) ─────────────────────────────────────────
+  sast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install bandit
+        run: pip install bandit
+      # -ll => report medium severity and above only (less noise).
+      - name: Bandit
+        run: bandit -r app -ll
+
+  # ── Dependency vulnerability audit ────────────────────────────────────────
+  deps-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: pip-audit
+        run: pip-audit -r requirements.txt
+
+  # ── Container build (keeps the Dockerfile valid; does not push) ────────────
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: sitinform-app:ci

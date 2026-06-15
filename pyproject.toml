@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+# Put the project root on sys.path so `from app import ...` resolves
+# regardless of how pytest is launched (bare `pytest` or `python -m pytest`).
+pythonpath = ["."]
+testpaths = ["tests"]

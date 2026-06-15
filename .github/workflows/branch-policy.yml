@@ -1,0 +1,49 @@
+name: Branch policy
+
+# Enforces the team's branch flow:
+#   develop          -> main
+#   feature/*        -> develop
+#   securityfeature/*-> develop
+#   enhancement/*    -> develop
+#   bugfix/*         -> develop
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-source-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce branch flow
+        env:
+          BASE: ${{ github.base_ref }}   # branch being merged INTO
+          HEAD: ${{ github.head_ref }}   # branch being merged FROM
+        run: |
+          echo "Pull request: $HEAD -> $BASE"
+          case "$BASE" in
+            main)
+              if [ "$HEAD" != "develop" ]; then
+                echo "::error::Only 'develop' may be merged into 'main' (got '$HEAD')."
+                exit 1
+              fi
+              echo "OK: develop -> main"
+              ;;
+            develop)
+              case "$HEAD" in
+                feature/*|securityfeature/*|enhancement/*|bugfix/*)
+                  echo "OK: '$HEAD' -> develop"
+                  ;;
+                *)
+                  echo "::error::Into 'develop' only feature/*, securityfeature/*, enhancement/* or bugfix/* are allowed (got '$HEAD')."
+                  exit 1
+                  ;;
+              esac
+              ;;
+            *)
+              echo "No policy defined for base '$BASE' — skipping."
+              ;;
+          esac
