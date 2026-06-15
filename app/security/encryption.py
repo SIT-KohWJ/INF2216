@@ -7,7 +7,6 @@ AES-256-GCM. Reconcile these two before implementing — either switch the key
 generation to a 32-byte key for AESGCM, or document the deviation. Flagging so
 it doesn't silently mismatch the design.
 """
-from flask import current_app
 
 
 class EncryptionService:
