@@ -33,6 +33,17 @@ jobs:
             # .env lives only on the server (git-ignored) and must already exist.
             docker compose -f compose.prod.yaml up -d --build
             docker image prune -f
-            # Smoke check: app answers on the internal port.
-            sleep 5
-            curl -fsS http://localhost:5000/healthz
+            # Smoke check: the app is reached via nginx (the only host-published
+            # service). The web container only exposes 5000 on the internal
+            # docker network, so curling host:5000 would always refuse.
+            # Retry to absorb container startup races instead of a flat sleep.
+            for i in $(seq 1 10); do
+              if curl -fsSk https://localhost/healthz || curl -fsS http://localhost/healthz; then
+                echo "healthz OK"
+                exit 0
+              fi
+              echo "waiting for app to come up ($i/10)..."
+              sleep 3
+            done
+            echo "Smoke check failed: /healthz never responded" >&2
+            exit 1
