@@ -4,7 +4,7 @@ A secure, web-based whistleblowing platform built exclusively for the Singapore 
 
 Reports move through a clear lifecycle — **Received → Triaged → Investigating → Resolved** — and every administrative action is written to an append-only audit log.
 
-> Module: ICT2213 — Secure Software Development · Team 13
+> Module: ICT2216 — Secure Software Development · Team 13
 
 ---
 
@@ -223,4 +223,4 @@ The plumbing — app factory, config, all 8 models, routing, CSRF, and rate-limi
 
 ---
 
-*Derived from ICT2213 Project Report 1 (SITinform secure-software requirements).*
+*Derived from ICT2216 Project Report 1 (SITinform secure-software requirements).*
