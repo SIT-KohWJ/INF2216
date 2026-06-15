@@ -14,7 +14,7 @@ Flask-Limiter==3.8.0      # per-IP rate limiting (C1, C2)
 # Auth & crypto
 PyJWT==2.13.0             # session tokens (D-series)
 bcrypt==4.2.1             # password hashing (A1)
-cryptography==46.0.6      # AES-256-GCM field encryption (A3)
+cryptography==46.0.7      # AES-256-GCM field encryption (A3); 46.0.7 fixes PYSEC-2026-36
 
 # Input safety / file validation
 bleach==6.2.0             # XSS sanitisation (B2)
