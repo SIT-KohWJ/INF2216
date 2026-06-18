@@ -1,11 +1,57 @@
 {% extends "base.html" %}
 {% block title %}Login - SITinform{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='auth.css') }}">
+{% endblock %}
+{% block body_class %}auth-body{% endblock %}
+{% block main_class %}auth-main{% endblock %}
 {% block content %}
-<h1>Login</h1>
-<form method="post">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <label>Email <input type="email" name="email" required></label>
-  <label>Password <input type="password" name="password" required></label>
-  <button type="submit">Sign in</button>
-</form>
+<section class="auth-shell">
+  <div class="auth-stack auth-stack-login">
+    <header class="auth-header">
+      <span class="auth-mark" aria-hidden="true"></span>
+      <a class="auth-wordmark" href="{{ url_for('auth.login') }}" aria-label="SITinform sign in">
+        SITinform
+      </a>
+      <h1 id="login-title">Sign In</h1>
+      <p class="auth-copy">Use your registered SIT email to access your secure workspace.</p>
+    </header>
+
+    <article class="auth-card" aria-labelledby="login-title">
+      <form class="auth-form" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-field">
+          <label class="form-label" for="login-email">Email Address</label>
+          <input
+            class="form-input"
+            id="login-email"
+            type="email"
+            name="email"
+            autocomplete="email"
+            placeholder="you@sit.singaporetech.edu.sg"
+            required
+          >
+        </div>
+
+        <div class="form-field">
+          <label class="form-label" for="login-password">Password</label>
+          <input
+            class="form-input"
+            id="login-password"
+            type="password"
+            name="password"
+            autocomplete="current-password"
+            placeholder="Enter your password"
+            required
+          >
+        </div>
+
+        <button class="auth-button" type="submit">Sign In</button>
+      </form>
+    </article>
+
+    <p class="auth-foot-link">Need access? <a href="{{ url_for('auth.register') }}">Create a new SIT account</a></p>
+  </div>
+</section>
 {% endblock %}

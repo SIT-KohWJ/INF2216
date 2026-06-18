@@ -18,6 +18,7 @@ cryptography==46.0.7      # AES-256-GCM field encryption (A3); 46.0.7 fixes PYSE
 
 # Input safety / file validation
 bleach==6.2.0             # XSS sanitisation (B2)
+email-validator==2.2.0    # strict server-side email validation
 python-magic==0.4.27      # magic-byte MIME validation (B3, B7)
 
 # Local dev convenience

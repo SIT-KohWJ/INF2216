@@ -22,6 +22,7 @@ CREATE TYPE recommendation_outcome AS ENUM ('action_taken', 'dismissed', 'referr
 CREATE TABLE users (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email               VARCHAR(255) NOT NULL UNIQUE,
+    full_name           VARCHAR(255) NOT NULL,
     password_hash       TEXT         NOT NULL,                 -- bcrypt hash only, never plaintext
     role                user_role    NOT NULL DEFAULT 'whistleblower',
     is_active           BOOLEAN      NOT NULL DEFAULT TRUE,
