@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Manage Users - SITinform{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <div><h2><i class="fas fa-users"></i> Manage Users</h2></div>
+        {% if current_user.role == 'system_admin' %}
+        <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary"><i class="fas fa-user-plus"></i> Create User</a>
+        {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                {% if users %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td><small class="text-muted">{{ user.id[:8] }}...</small></td>
+                                <td>{{ user.full_name }}</td>
+                                <td>{{ user.email }}</td>
+                                <td><span class="badge bg-secondary">{{ get_role_display_name(user.role) }}</span></td>
+                                <td><span class="badge bg-success">Active</span></td>
+                                <td>{{ format_date(user.created_at) }}</td>
+                                <td>
+                                    {% if user.id != current_user.id %}
+                                        {% if current_user.role == 'system_admin' %}
+                                        <a href="{{ url_for('admin.change_user_role', user_id=user.id) }}" class="btn btn-sm btn-outline-warning"><i class="fas fa-user-shield"></i> Role</a>
+                                        {% endif %}
+                                        <form method="POST" action="{{ url_for('admin.deactivate_user', user_id=user.id) }}" style="display:inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Suspend this account?')"><i class="fas fa-ban"></i> Suspend</button>
+                                        </form>
+                                    {% else %}
+                                    <span class="text-muted">Current User</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">No users found.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% if suspended_users and current_user.role == 'system_admin' %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark"><h5 class="mb-0"><i class="fas fa-user-slash"></i> Suspended Accounts</h5></div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead><tr><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {% for user in suspended_users %}
+                            <tr>
+                                <td>{{ user.email }}</td>
+                                <td>{{ get_role_display_name(user.role) }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('admin.reactivate_user', user_id=user.id) }}" style="display:inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-success"><i class="fas fa-undo"></i> Reactivate</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Investigator Dashboard - SITinform{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2><i class="fas fa-user-secret"></i> Investigator Dashboard</h2>
+        <p class="text-muted">Welcome, {{ current_user.full_name }}! Shared case overview.</p>
+    </div>
+</div>
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-primary"><div class="card-body"><h5 class="card-title"><i class="fas fa-files-o"></i> Total Cases</h5><p class="card-text fs-3">{{ all_reports|length }}</p></div></div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-info"><div class="card-body"><h5 class="card-title"><i class="fas fa-user-check"></i> My Assigned</h5><p class="card-text fs-3">{{ my_reports|length }}</p></div></div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-warning"><div class="card-body"><h5 class="card-title"><i class="fas fa-search"></i> Investigating</h5><p class="card-text fs-3">{{ my_reports|selectattr('status', 'equalto', 'Investigating')|list|length }}</p></div></div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-success"><div class="card-body"><h5 class="card-title"><i class="fas fa-check"></i> Resolved</h5><p class="card-text fs-3">{{ my_reports|selectattr('status', 'equalto', 'Resolved')|list|length }}</p></div></div>
+    </div>
+</div>
+{% if my_reports %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white"><h5 class="mb-0"><i class="fas fa-folder-open"></i> My Assigned Cases</h5></div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead><tr><th>Reference</th><th>Title</th><th>Category</th><th>Status</th><th>Submitted</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {% for report in my_reports %}
+                            <tr>
+                                <td><code>{{ report.reference_number }}</code></td>
+                                <td>{{ report.title }}</td>
+                                <td>{{ get_category_display_name(report.category) }}</td>
+                                <td><span class="badge {{ get_report_status_css(report.status) }}">{{ report.status }}</span></td>
+                                <td>{{ format_date(report.created_at) }}</td>
+                                <td><a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> View</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0"><i class="fas fa-list"></i> All Cases Overview</h5></div>
+            <div class="card-body">
+                <div class="alert alert-info mb-3"><i class="fas fa-info-circle"></i> You can only view details of cases assigned to you.</div>
+                {% if all_reports %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead><tr><th>Reference</th><th>Category</th><th>Status</th><th>Assigned Investigator</th><th>Action</th></tr></thead>
+                        <tbody>
+                            {% for report in all_reports %}
+                            <tr class="{{ 'table-success' if report.id in my_report_ids else '' }}">
+                                <td><code>{{ report.reference_number }}</code></td>
+                                <td>{{ get_category_display_name(report.category) }}</td>
+                                <td><span class="badge {{ get_report_status_css(report.status) }}">{{ report.status }}</span></td>
+                                <td>
+                                    {% if report.investigator_id %}
+                                        {% if report.investigator_id == current_user.id %}
+                                            <span class="badge bg-success">You</span>
+                                        {% else %}
+                                            {{ investigator_map.get(report.investigator_id, 'Unknown') }}
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if report.id in my_report_ids %}
+                                        <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> View</a>
+                                    {% else %}
+                                        <span class="btn btn-sm btn-outline-secondary disabled"><i class="fas fa-lock"></i> Restricted</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info"><i class="fas fa-info-circle"></i> No reports in the system yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

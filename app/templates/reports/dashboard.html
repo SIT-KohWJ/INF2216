@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - SITinform{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2><i class="fas fa-tachometer-alt"></i> Whistleblower Dashboard</h2>
+        <p class="text-muted">Welcome, {{ current_user.full_name }}!</p>
+    </div>
+</div>
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-file-alt"></i> My Reports</h5>
+                <p class="card-text fs-3">{{ reports|length }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-clock"></i> Pending</h5>
+                <p class="card-text fs-3">{{ reports|selectattr('status', 'equalto', 'Received')|list|length }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-check"></i> Resolved</h5>
+                <p class="card-text fs-3">{{ reports|selectattr('status', 'equalto', 'Resolved')|list|length }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-list"></i> My Reports</h5>
+                <a href="{{ url_for('reports.submit_report') }}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> New Report</a>
+            </div>
+            <div class="card-body">
+                {% if reports %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr><th>Reference</th><th>Title</th><th>Category</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for report in reports %}
+                            <tr>
+                                <td><code>{{ report.reference_number }}</code></td>
+                                <td>{{ report.title }}</td>
+                                <td>{{ get_category_display_name(report.category) }}</td>
+                                <td><span class="badge {{ get_report_status_css(report.status) }}">{{ report.status }}</span></td>
+                                <td>{{ format_date(report.created_at) }}</td>
+                                <td><a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> View</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info"><i class="fas fa-info-circle"></i> No reports yet. <a href="{{ url_for('reports.submit_report') }}">Submit your first report</a></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

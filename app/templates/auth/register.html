@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Register - SITinform{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-user-plus"></i> Register</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">Create your account to submit whistleblowing reports.</p>
+                <form method="POST" action="{{ url_for('auth.register') }}">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.first_name.label(class="form-label") }}
+                        {{ form.first_name(class="form-control") }}
+                        {% if form.first_name.errors %}
+                        <div class="text-danger small">{{ form.first_name.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.last_name.label(class="form-label") }}
+                        {{ form.last_name(class="form-control") }}
+                        {% if form.last_name.errors %}
+                        <div class="text-danger small">{{ form.last_name.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.email.label(class="form-label") }}
+                        {{ form.email(class="form-control", placeholder="username@sit.singaporetech.edu.sg") }}
+                        {% if form.email.errors %}
+                        <div class="text-danger small">{{ form.email.errors[0] }}</div>
+                        {% endif %}
+                        <div class="form-text">Must use your SIT email address</div>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.password.label(class="form-label") }}
+                        {{ form.password(class="form-control") }}
+                        <div class="form-text">Minimum 8 characters with uppercase, lowercase, and digit</div>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.confirm_password.label(class="form-label") }}
+                        {{ form.confirm_password(class="form-control") }}
+                    </div>
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+                <div class="mt-3 text-center">
+                    <p class="mb-0">Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

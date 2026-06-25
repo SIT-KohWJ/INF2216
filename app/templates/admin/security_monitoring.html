@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Security Monitoring - SITinform{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12"><h2><i class="fas fa-shield-alt"></i> Security Monitoring</h2></div>
+</div>
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Suspicious Activity</h5></div>
+            <div class="card-body">
+                {% if suspicious_activity %}
+                {% for item in suspicious_activity %}
+                <div class="alert alert-danger">User {{ item.user_id[:8] }}... has {{ item.attempts }} failed login attempts</div>
+                {% endfor %}
+                {% else %}
+                <div class="alert alert-success"><i class="fas fa-check-circle"></i> No suspicious activity detected.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Activity Statistics</h5></div>
+            <div class="card-body">
+                {% for action, count in activity_stats.items() %}
+                <div class="d-flex justify-content-between border-bottom pb-2">
+                    <span class="{{ get_action_css(action) }}">{{ action }}</span>
+                    <strong>{{ count }}</strong>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
