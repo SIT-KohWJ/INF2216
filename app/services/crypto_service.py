@@ -73,7 +73,10 @@ class CryptoService:
             ciphertext = encrypted_data[28:]
             cipher = AES.new(self.encryption_key, AES.MODE_GCM, nonce=nonce)
             decrypted = unpad(cipher.decrypt_and_verify(ciphertext, tag), AES.block_size)
-            return decrypted.decode('utf-8')
+            try:
+                return decrypted.decode('utf-8')
+            except UnicodeDecodeError:
+                return decrypted  # binary data (PDF, DOCX, images)
         except Exception:
             return None
 
