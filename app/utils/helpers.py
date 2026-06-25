@@ -36,8 +36,8 @@ def format_bytes(size):
 
 
 def get_report_status_css(status):
-    status_classes = {'Received': 'badge-primary', 'Triaged': 'badge-info', 'Investigating': 'badge-warning', 'Resolved': 'badge-success'}
-    return status_classes.get(status, 'badge-secondary')
+    status_classes = {'Received': 'text-bg-primary', 'Triaged': 'text-bg-info', 'Investigating': 'text-bg-warning', 'Resolved': 'text-bg-success'}
+    return status_classes.get(status, 'text-bg-secondary')
 
 
 def get_action_css(action):
