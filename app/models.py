@@ -2,6 +2,7 @@ from datetime import datetime
 import uuid
 from app import db, login_manager
 from flask_login import UserMixin
+from sqlalchemy.dialects.postgresql import UUID
 import bcrypt
 
 
@@ -175,10 +176,10 @@ class Notification(db.Model):
     __tablename__ = 'notifications'
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     message = db.Column(db.Text, nullable=False)
     notification_type = db.Column(db.String(64), nullable=False)
-    related_report_id = db.Column(db.String(36), nullable=True)
+    related_report_id = db.Column(UUID(as_uuid=True), nullable=True)
     read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
