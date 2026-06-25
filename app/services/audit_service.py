@@ -3,14 +3,44 @@ from app import db
 from app.services.crypto_service import crypto_service
 
 
+REPORT_ACTIONS = {
+    'report_submission', 'status_update', 'investigator_assignment',
+    'investigation_note', 'outcome_recommended', 'evidence_downloaded',
+    'report_viewed', 'audit_log_export', 'evidence_upload_failed', 'report_downloaded'
+}
+
+SYSTEM_ACTIONS = {
+    'user_registration', 'user_login', 'user_logout', 'password_change',
+    'role_change', 'user_deactivation', 'user_reactivation', 'account_deletion',
+    'login_failed', 'login_failed_account_locked', 'password_reset_requested',
+    'password_reset_completed'
+}
+
+
 class AuditService:
     @staticmethod
     def get_audit_logs(limit=100):
         return AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(limit).all()
 
     @staticmethod
+    def get_report_audit_logs(limit=100):
+        return AuditLog.query.filter(AuditLog.action.in_(REPORT_ACTIONS)).order_by(AuditLog.timestamp.desc()).limit(limit).all()
+
+    @staticmethod
+    def get_system_audit_logs(limit=100):
+        return AuditLog.query.filter(AuditLog.action.in_(SYSTEM_ACTIONS)).order_by(AuditLog.timestamp.desc()).limit(limit).all()
+
+    @staticmethod
     def get_recent_activity(limit=10):
         return AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(limit).all()
+
+    @staticmethod
+    def get_recent_report_activity(limit=10):
+        return AuditLog.query.filter(AuditLog.action.in_(REPORT_ACTIONS)).order_by(AuditLog.timestamp.desc()).limit(limit).all()
+
+    @staticmethod
+    def get_recent_system_activity(limit=10):
+        return AuditLog.query.filter(AuditLog.action.in_(SYSTEM_ACTIONS)).order_by(AuditLog.timestamp.desc()).limit(limit).all()
 
     @staticmethod
     def verify_audit_integrity():

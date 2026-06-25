@@ -14,6 +14,8 @@ reports_bp = Blueprint('reports', __name__)
 @reports_bp.route('/')
 @login_required
 def dashboard():
+    if current_user.role in ['report_admin', 'system_admin']:
+        return redirect(url_for('admin.dashboard'))
     if current_user.role != 'whistleblower':
         return redirect(url_for('reports.investigator_dashboard'))
     reports = ReportService.get_reports_for_user(current_user)
@@ -24,7 +26,7 @@ def dashboard():
 @reports_bp.route('/investigator')
 @login_required
 def investigator_dashboard():
-    if current_user.role not in ['investigator', 'admin', 'system_admin']:
+    if current_user.role != 'investigator':
         abort(403)
     all_reports = ReportService.get_all_reports_for_investigator_dashboard()
     my_reports = ReportService.get_reports_for_user(current_user)
@@ -84,7 +86,7 @@ def add_investigation_note(report_id):
     if error:
         flash(error, 'warning')
         return redirect(url_for('reports.investigator_dashboard'))
-    if current_user.role not in ['investigator', 'admin', 'system_admin']:
+    if current_user.role not in ['investigator', 'report_admin']:
         abort(403)
     form = InvestigationNoteForm()
     if form.validate_on_submit():
@@ -104,7 +106,7 @@ def recommend_outcome(report_id):
     if error:
         flash(error, 'warning')
         return redirect(url_for('reports.investigator_dashboard'))
-    if current_user.role not in ['investigator', 'admin', 'system_admin']:
+    if current_user.role not in ['investigator', 'report_admin']:
         abort(403)
     form = OutcomeForm()
     if form.validate_on_submit():
@@ -124,7 +126,7 @@ def close_report(report_id):
     if error:
         flash(error, 'warning')
         return redirect(url_for('reports.investigator_dashboard'))
-    if current_user.role not in ['investigator', 'admin', 'system_admin']:
+    if current_user.role not in ['investigator', 'report_admin']:
         abort(403)
     success, message = ReportService.close_report(report, current_user)
     if success:

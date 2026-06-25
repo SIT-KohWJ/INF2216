@@ -68,6 +68,18 @@ def create_app(config_name=None):
     )
 
     @app.before_request
+    def check_session_revoked():
+        from flask import session, redirect, url_for
+        from flask_login import current_user, logout_user
+        from app.models import RevokedToken
+        if current_user.is_authenticated:
+            sid = session.get('_sid')
+            if sid and RevokedToken.is_token_revoked(sid):
+                logout_user()
+                session.clear()
+                return redirect(url_for('auth.login'))
+
+    @app.before_request
     def enforce_https():
         from flask import request, redirect
         if app.config.get('SESSION_COOKIE_SECURE'):

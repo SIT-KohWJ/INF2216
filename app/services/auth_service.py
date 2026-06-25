@@ -133,12 +133,12 @@ class AuthService:
 
     @staticmethod
     def check_user_permission(user, required_role):
-        role_hierarchy = {'system_admin': 4, 'admin': 3, 'investigator': 2, 'whistleblower': 1}
+        role_hierarchy = {'system_admin': 4, 'report_admin': 3, 'investigator': 2, 'whistleblower': 1}
         return role_hierarchy.get(user.role, 0) >= role_hierarchy.get(required_role, 0)
 
     @staticmethod
     def check_self_privilege_escalation(user, target_role):
-        role_hierarchy = {'system_admin': 4, 'admin': 3, 'investigator': 2, 'whistleblower': 1}
+        role_hierarchy = {'system_admin': 4, 'report_admin': 3, 'investigator': 2, 'whistleblower': 1}
         return role_hierarchy.get(user.role, 0) >= role_hierarchy.get(target_role, 0)
 
     @staticmethod

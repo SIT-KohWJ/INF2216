@@ -18,7 +18,7 @@ class RegistrationForm(FlaskForm):
 
 
 class LoginForm(FlaskForm):
-    email = StringField('Email', validators=[DataRequired(), Email()])
+    email = StringField('Email', validators=[DataRequired()])
     password = PasswordField('Password', validators=[DataRequired()])
     remember = BooleanField('Remember Me')
     submit = SubmitField('Login')
@@ -89,7 +89,7 @@ class UserManagementForm(FlaskForm):
     password = PasswordField('Password', validators=[DataRequired(), Length(min=8)])
     role = SelectField('Role', choices=[
         ('whistleblower', 'Whistleblower'), ('investigator', 'Investigator'),
-        ('admin', 'Admin'), ('system_admin', 'System Admin')
+        ('report_admin', 'Report Admin'), ('system_admin', 'System Admin')
     ], validators=[DataRequired()])
     submit = SubmitField('Create User')
 
@@ -101,7 +101,7 @@ class UserManagementForm(FlaskForm):
 class RoleChangeForm(FlaskForm):
     role = SelectField('New Role', choices=[
         ('whistleblower', 'Whistleblower'), ('investigator', 'Investigator'),
-        ('admin', 'Admin'), ('system_admin', 'System Admin')
+        ('report_admin', 'Report Admin'), ('system_admin', 'System Admin')
     ], validators=[DataRequired()])
     submit = SubmitField('Change Role')
 

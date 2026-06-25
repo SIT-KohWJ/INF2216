@@ -1,9 +1,11 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, login_required, current_user
 from app.services.auth_service import AuthService
 from app.services.crypto_service import crypto_service
 from app.forms import RegistrationForm, LoginForm, PasswordChangeForm, PasswordResetRequestForm, PasswordResetForm
-from app import limiter
+from app import limiter, db
+from app.models import RevokedToken
+import uuid
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -34,7 +36,9 @@ def login():
         ip_address = request.remote_addr
         user = AuthService.authenticate_user(form.email.data, form.password.data, ip_address)
         if user:
+            session.clear()  #regenerate session ID to prevent session fixation
             login_user(user, remember=form.remember.data)
+            session['_sid'] = str(uuid.uuid4())  #trackable session token for revocation
             if user.role in ['system_admin', 'admin']:
                 return redirect(url_for('admin.dashboard'))
             elif user.role == 'investigator':
@@ -49,8 +53,13 @@ def login():
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    sid = session.get('_sid')
+    if sid:
+        db.session.add(RevokedToken(token_jti=sid, reason='logout'))
+        db.session.commit()
     crypto_service.log_audit_action(action='user_logout', acting_user=current_user, acting_role=current_user.role, details='User logged out', ip_address=request.remote_addr)
     logout_user()
+    session.clear()
     flash('You have been logged out.', 'info')
     return redirect(url_for('auth.login'))
 
@@ -63,8 +72,13 @@ def change_password():
     if form.validate_on_submit():
         success, message = AuthService.update_user_password(current_user, form.current_password.data, form.new_password.data)
         if success:
-            flash(message + ' Please log in again with your new password.', 'success')
+            sid = session.get('_sid')
+            if sid:
+                db.session.add(RevokedToken(token_jti=sid, reason='password_change'))
+                db.session.commit()
             logout_user()
+            session.clear()
+            flash(message + ' Please log in again with your new password.', 'success')
             return redirect(url_for('auth.login'))
         else:
             flash(message, 'danger')
@@ -77,10 +91,7 @@ def forgot_password():
     form = PasswordResetRequestForm()
     if form.validate_on_submit():
         success, result = AuthService.request_password_reset(form.email.data)
-        if success and result != "If the email exists, a reset link has been sent":
-            flash(f'Password reset token generated. Token: {result}', 'info')
-        else:
-            flash('If the email exists, a reset link has been sent.', 'info')
+        flash('If the email exists, a reset link has been sent.', 'info')
         return redirect(url_for('auth.reset_password'))
     return render_template('auth/forgot_password.html', form=form)
 
@@ -105,7 +116,12 @@ def delete_account():
     if request.method == 'POST':
         success, message = AuthService.request_account_deletion(current_user)
         if success:
+            sid = session.get('_sid')
+            if sid:
+                db.session.add(RevokedToken(token_jti=sid, reason='account_deletion'))
+                db.session.commit()
             logout_user()
+            session.clear()
             flash(message, 'success')
             return redirect(url_for('auth.login'))
         else:

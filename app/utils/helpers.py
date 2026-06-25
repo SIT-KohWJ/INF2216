@@ -52,7 +52,7 @@ def json_serializer(obj):
 
 
 def get_role_display_name(role):
-    role_names = {'whistleblower': 'Whistleblower', 'investigator': 'Investigator', 'admin': 'Admin', 'system_admin': 'System Admin'}
+    role_names = {'whistleblower': 'Whistleblower', 'investigator': 'Investigator', 'report_admin': 'Report Admin', 'system_admin': 'System Admin'}
     return role_names.get(role, role)
 
 

@@ -19,8 +19,10 @@
                 <ul class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-                    {% if current_user.role in ['admin', 'system_admin'] %}
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.dashboard') }}"><i class="fas fa-cog"></i> Admin</a></li>
+                    {% if current_user.role == 'report_admin' %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.dashboard') }}"><i class="fas fa-file-alt"></i> Report Admin</a></li>
+                    {% elif current_user.role == 'system_admin' %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.dashboard') }}"><i class="fas fa-cog"></i> System Admin</a></li>
                     {% endif %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                     {% else %}

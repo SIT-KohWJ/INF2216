@@ -14,26 +14,50 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 @admin_bp.before_request
 @login_required
 def check_admin():
-    if current_user.role not in ['admin', 'system_admin']:
+    if current_user.role not in ['report_admin', 'system_admin']:
         abort(403)
 
 
+# ── Shared ────────────────────────────────────────────────────────────────────
+
 @admin_bp.route('/')
 def dashboard():
-    total_reports = Report.query.count()
-    received_reports = Report.query.filter_by(status='Received').count()
-    triaged_reports = Report.query.filter_by(status='Triaged').count()
-    investigating_reports = Report.query.filter_by(status='Investigating').count()
-    resolved_reports = Report.query.filter_by(status='Resolved').count()
-    recent_activity = AuditService.get_recent_activity(10)
-    return render_template('admin/dashboard.html', total_reports=total_reports, received_reports=received_reports, triaged_reports=triaged_reports, investigating_reports=investigating_reports, resolved_reports=resolved_reports, recent_activity=recent_activity)
+    if current_user.role == 'report_admin':
+        total_reports = Report.query.count()
+        received_reports = Report.query.filter_by(status='Received').count()
+        triaged_reports = Report.query.filter_by(status='Triaged').count()
+        investigating_reports = Report.query.filter_by(status='Investigating').count()
+        resolved_reports = Report.query.filter_by(status='Resolved').count()
+        recent_activity = AuditService.get_recent_report_activity(10)
+        return render_template('admin/dashboard.html',
+                               total_reports=total_reports,
+                               received_reports=received_reports,
+                               triaged_reports=triaged_reports,
+                               investigating_reports=investigating_reports,
+                               resolved_reports=resolved_reports,
+                               recent_activity=recent_activity)
+    else:
+        total_users = User.query.count()
+        active_users = User.query.filter_by(is_active=True).count()
+        suspended_users = User.query.filter_by(is_active=False).count()
+        recent_activity = AuditService.get_recent_system_activity(10)
+        return render_template('admin/dashboard.html',
+                               total_users=total_users,
+                               active_users=active_users,
+                               suspended_users=suspended_users,
+                               recent_activity=recent_activity)
 
+
+# ── Report Admin routes (FR-AD2 to FR-AD10) ──────────────────────────────────
 
 @admin_bp.route('/reports')
 def manage_reports():
+    if current_user.role != 'report_admin':
+        abort(403)
     filters = {}
     filters['category'] = request.args.get('category')
     filters['status'] = request.args.get('status')
+    filters['severity'] = request.args.get('severity')
     filters['investigator_id'] = request.args.get('investigator_id')
     filters['search'] = request.args.get('search')
     date_from = request.args.get('date_from')
@@ -53,6 +77,8 @@ def manage_reports():
 
 @admin_bp.route('/reports/<report_id>/assign', methods=['GET', 'POST'])
 def assign_investigator(report_id):
+    if current_user.role != 'report_admin':
+        abort(403)
     report, error = ReportService.get_report_by_id(report_id, current_user)
     if error:
         flash(error, 'warning')
@@ -73,8 +99,30 @@ def assign_investigator(report_id):
     return render_template('admin/assign_investigator.html', form=form, report=report)
 
 
+@admin_bp.route('/reports/<report_id>/severity', methods=['POST'])
+def update_report_severity(report_id):
+    if current_user.role != 'report_admin':
+        abort(403)
+    report, error = ReportService.get_report_by_id(report_id, current_user)
+    if error:
+        flash(error, 'warning')
+        return redirect(url_for('admin.manage_reports'))
+    new_severity = request.form.get('severity')
+    if new_severity in ReportService.VALID_SEVERITIES:
+        success, message = ReportService.update_report_severity(report=report, new_severity=new_severity, acting_user=current_user)
+        if success:
+            flash(message, 'success')
+        else:
+            flash(message, 'danger')
+    else:
+        flash('Invalid severity', 'danger')
+    return redirect(request.referrer or url_for('admin.manage_reports'))
+
+
 @admin_bp.route('/reports/<report_id>/status', methods=['POST'])
 def update_report_status(report_id):
+    if current_user.role != 'report_admin':
+        abort(403)
     report, error = ReportService.get_report_by_id(report_id, current_user)
     if error:
         flash(error, 'warning')
@@ -91,8 +139,63 @@ def update_report_status(report_id):
     return redirect(url_for('admin.manage_reports'))
 
 
+@admin_bp.route('/audit')
+def audit_logs():
+    if current_user.role != 'report_admin':
+        abort(403)
+    logs = AuditService.get_report_audit_logs(limit=100)
+    integrity = AuditService.verify_audit_integrity()
+    return render_template('admin/audit_logs.html', logs=logs, integrity=integrity)
+
+
+@admin_bp.route('/audit/verify')
+def verify_audit_integrity():
+    if current_user.role != 'report_admin':
+        abort(403)
+    result = AuditService.verify_audit_integrity()
+    if result['integrity_ok']:
+        flash('Audit log integrity verified successfully', 'success')
+    else:
+        flash(f'Audit log integrity check failed: {result["invalid"]} invalid entries', 'danger')
+    return redirect(url_for('admin.audit_logs'))
+
+
+@admin_bp.route('/audit/export')
+def export_audit_logs():
+    if current_user.role != 'report_admin':
+        abort(403)
+    import json
+    from flask import Response
+    logs = AuditService.get_report_audit_logs(limit=10000)
+    data = [{'id': l.id, 'timestamp': l.timestamp.isoformat() if l.timestamp else None, 'action': l.action, 'acting_role': l.acting_role, 'target_type': l.target_type, 'target_id': l.target_id, 'details': l.details, 'ip_address': l.ip_address} for l in logs]
+    response = Response(json.dumps(data, indent=2), mimetype='application/json', headers={'Content-Disposition': 'attachment; filename=report_audit_logs.json'})
+    crypto_service.log_audit_action(action='audit_log_export', acting_user=current_user, acting_role=current_user.role, details='Report audit logs exported')
+    return response
+
+
+@admin_bp.route('/security')
+def security_monitoring():
+    if current_user.role != 'report_admin':
+        abort(403)
+    suspicious_activity = AuditService.get_suspicious_activity()
+    activity_stats = AuditService.get_activity_stats()
+    return render_template('admin/security_monitoring.html', suspicious_activity=suspicious_activity, activity_stats=activity_stats)
+
+
+# ── System Admin routes (FR-SA2 to FR-SA8) ───────────────────────────────────
+
+@admin_bp.route('/system_audit')
+def system_audit_logs():
+    if current_user.role != 'system_admin':
+        abort(403)
+    logs = AuditService.get_system_audit_logs(limit=100)
+    return render_template('admin/audit_logs.html', logs=logs, integrity=None)
+
+
 @admin_bp.route('/users')
 def manage_users():
+    if current_user.role != 'system_admin':
+        abort(403)
     users = User.query.filter_by(is_active=True).all()
     suspended_users = User.query.filter_by(is_active=False).all()
     return render_template('admin/manage_users.html', users=users, suspended_users=suspended_users)
@@ -100,21 +203,23 @@ def manage_users():
 
 @admin_bp.route('/users/<user_id>/deactivate', methods=['POST'])
 def deactivate_user(user_id):
+    if current_user.role != 'system_admin':
+        abort(403)
     if str(user_id) == str(current_user.id):
         flash('Cannot deactivate your own account', 'danger')
         return redirect(url_for('admin.manage_users'))
     user = AuthService.get_user_by_id(user_id)
-    if user and AuthService.check_user_permission(current_user, 'system_admin'):
+    if user:
         AuthService.deactivate_user(user, current_user)
         flash('User account suspended successfully', 'success')
     else:
-        flash('Failed to deactivate user. Insufficient permissions.', 'danger')
+        flash('User not found', 'danger')
     return redirect(url_for('admin.manage_users'))
 
 
 @admin_bp.route('/users/<user_id>/reactivate', methods=['POST'])
 def reactivate_user(user_id):
-    if not AuthService.check_user_permission(current_user, 'system_admin'):
+    if current_user.role != 'system_admin':
         abort(403)
     user = AuthService.get_user_by_id(user_id)
     if user:
@@ -127,11 +232,11 @@ def reactivate_user(user_id):
 
 @admin_bp.route('/users/<user_id>/change_role', methods=['GET', 'POST'])
 def change_user_role(user_id):
+    if current_user.role != 'system_admin':
+        abort(403)
     if str(user_id) == str(current_user.id):
         flash('Cannot modify your own role', 'danger')
         return redirect(url_for('admin.manage_users'))
-    if not AuthService.check_user_permission(current_user, 'system_admin'):
-        abort(403)
     user = AuthService.get_user_by_id(user_id)
     if not user:
         abort(404)
@@ -148,7 +253,7 @@ def change_user_role(user_id):
 
 @admin_bp.route('/users/create', methods=['GET', 'POST'])
 def create_user():
-    if not AuthService.check_user_permission(current_user, 'system_admin'):
+    if current_user.role != 'system_admin':
         abort(403)
     form = UserManagementForm()
     if form.validate_on_submit():
@@ -161,43 +266,9 @@ def create_user():
     return render_template('admin/create_user.html', form=form)
 
 
-@admin_bp.route('/audit')
-def audit_logs():
-    logs = AuditService.get_audit_logs(limit=100)
-    integrity = AuditService.verify_audit_integrity()
-    return render_template('admin/audit_logs.html', logs=logs, integrity=integrity)
-
-
-@admin_bp.route('/audit/verify')
-def verify_audit_integrity():
-    result = AuditService.verify_audit_integrity()
-    if result['integrity_ok']:
-        flash('Audit log integrity verified successfully', 'success')
-    else:
-        flash(f'Audit log integrity check failed: {result["invalid"]} invalid entries', 'danger')
-    return redirect(url_for('admin.audit_logs'))
-
-
-@admin_bp.route('/audit/export')
-def export_audit_logs():
-    import json
-    from flask import Response
-    logs = AuditService.export_audit_logs()
-    response = Response(json.dumps(logs, indent=2), mimetype='application/json', headers={'Content-Disposition': 'attachment; filename=audit_logs.json'})
-    crypto_service.log_audit_action(action='audit_log_export', acting_user=current_user, acting_role=current_user.role, details='Audit logs exported')
-    return response
-
-
-@admin_bp.route('/security')
-def security_monitoring():
-    suspicious_activity = AuditService.get_suspicious_activity()
-    activity_stats = AuditService.get_activity_stats()
-    return render_template('admin/security_monitoring.html', suspicious_activity=suspicious_activity, activity_stats=activity_stats)
-
-
 @admin_bp.route('/platform_config')
 def platform_config():
-    if not AuthService.check_user_permission(current_user, 'system_admin'):
+    if current_user.role != 'system_admin':
         abort(403)
     from flask import current_app
     config = {
@@ -210,6 +281,5 @@ def platform_config():
         'max_failed_login_attempts': current_app.config.get('MAX_FAILED_LOGIN_ATTEMPTS'),
         'lockout_duration_minutes': current_app.config.get('LOCKOUT_DURATION_MINUTES'),
         'password_reset_expiry_minutes': current_app.config.get('PASSWORD_RESET_EXPIRY_MINUTES'),
-        'jwt_access_token_expires': current_app.config.get('JWT_ACCESS_TOKEN_EXPIRES'),
     }
     return render_template('admin/platform_config.html', config=config)

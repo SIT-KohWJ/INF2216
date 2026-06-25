@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Admin Dashboard - SITinform{% endblock %}
 {% block content %}
+{% if current_user.role == 'report_admin' %}
 <div class="row mb-4">
     <div class="col-12">
-        <h2><i class="fas fa-cog"></i> Admin Dashboard</h2>
-        <p class="text-muted">System overview and management.</p>
+        <h2><i class="fas fa-file-alt"></i> Report Admin Dashboard</h2>
+        <p class="text-muted">Case overview and report management.</p>
     </div>
 </div>
 <div class="row mb-4">
@@ -16,7 +17,7 @@
 <div class="row">
     <div class="col-md-8">
         <div class="card mb-4">
-            <div class="card-header"><h5 class="mb-0"><i class="fas fa-history"></i> Recent Activity</h5></div>
+            <div class="card-header"><h5 class="mb-0"><i class="fas fa-history"></i> Recent Report Activity</h5></div>
             <div class="card-body">
                 {% for log in recent_activity %}
                 <div class="border-bottom pb-2 mb-2">
@@ -24,6 +25,8 @@
                     <strong>{{ log.action }}</strong> - {{ log.details or '-' }}
                     <br><small class="text-muted">{{ format_datetime(log.timestamp) }} | {{ log.acting_role }}</small>
                 </div>
+                {% else %}
+                <p class="text-muted">No recent activity.</p>
                 {% endfor %}
             </div>
         </div>
@@ -33,11 +36,52 @@
             <div class="card-header"><h5 class="mb-0">Quick Actions</h5></div>
             <div class="card-body">
                 <a href="{{ url_for('admin.manage_reports') }}" class="btn btn-outline-primary w-100 mb-2"><i class="fas fa-file-alt"></i> Manage Reports</a>
-                <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-secondary w-100 mb-2"><i class="fas fa-users"></i> Manage Users</a>
-                <a href="{{ url_for('admin.audit_logs') }}" class="btn btn-outline-info w-100 mb-2"><i class="fas fa-clipboard-list"></i> Audit Logs</a>
-                <a href="{{ url_for('admin.security_monitoring') }}" class="btn btn-outline-warning w-100"><i class="fas fa-shield-alt"></i> Security</a>
+                <a href="{{ url_for('admin.audit_logs') }}" class="btn btn-outline-info w-100"><i class="fas fa-clipboard-list"></i> Audit Logs</a>
             </div>
         </div>
     </div>
 </div>
+
+{% else %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2><i class="fas fa-cog"></i> System Admin Dashboard</h2>
+        <p class="text-muted">User and platform management.</p>
+    </div>
+</div>
+<div class="row mb-4">
+    <div class="col-md-4 mb-3"><div class="card text-white bg-primary"><div class="card-body"><h5>Total Users</h5><p class="fs-3">{{ total_users }}</p></div></div></div>
+    <div class="col-md-4 mb-3"><div class="card text-white bg-success"><div class="card-body"><h5>Active</h5><p class="fs-3">{{ active_users }}</p></div></div></div>
+    <div class="col-md-4 mb-3"><div class="card text-white bg-danger"><div class="card-body"><h5>Suspended</h5><p class="fs-3">{{ suspended_users }}</p></div></div></div>
+</div>
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0"><i class="fas fa-history"></i> Recent System Activity</h5></div>
+            <div class="card-body">
+                {% for log in recent_activity %}
+                <div class="border-bottom pb-2 mb-2">
+                    <span class="{{ get_action_css(log.action) }}"><i class="fas fa-circle"></i></span>
+                    <strong>{{ log.action }}</strong> - {{ log.details or '-' }}
+                    <br><small class="text-muted">{{ format_datetime(log.timestamp) }} | {{ log.acting_role }}</small>
+                </div>
+                {% else %}
+                <p class="text-muted">No recent activity.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Quick Actions</h5></div>
+            <div class="card-body">
+                <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-primary w-100 mb-2"><i class="fas fa-users"></i> Manage Users</a>
+                <a href="{{ url_for('admin.create_user') }}" class="btn btn-outline-secondary w-100 mb-2"><i class="fas fa-user-plus"></i> Create User</a>
+                <a href="{{ url_for('admin.system_audit_logs') }}" class="btn btn-outline-info w-100 mb-2"><i class="fas fa-clipboard-list"></i> System Audit Logs</a>
+                <a href="{{ url_for('admin.platform_config') }}" class="btn btn-outline-warning w-100"><i class="fas fa-sliders-h"></i> Platform Config</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

@@ -13,7 +13,7 @@
             <div class="card-header"><h5 class="mb-0">Report Details</h5></div>
             <div class="card-body">
                 <h4>{{ report.title }}</h4>
-                <p class="text-muted">Category: {{ get_category_display_name(report.category) }} | Submitted: {{ format_datetime(report.created_at) }}</p>
+                <p class="text-muted">Category: {{ get_category_display_name(report.category) }}{% if current_user.role != 'whistleblower' %} | Severity: <span class="badge {% if report.severity == 'critical' %}bg-danger{% elif report.severity == 'high' %}bg-warning text-dark{% elif report.severity == 'medium' %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ report.severity|capitalize }}</span>{% endif %} | Submitted: {{ format_datetime(report.created_at) }}</p>
                 {% if decrypted_data %}
                 <p>{{ decrypted_data.description }}</p>
                 {% else %}
@@ -49,7 +49,7 @@
         {% endif %}
     </div>
     <div class="col-md-4">
-        {% if current_user.role in ['investigator', 'admin', 'system_admin'] %}
+        {% if current_user.role in ['investigator', 'report_admin'] %}
         <div class="card mb-4">
             <div class="card-header"><h5 class="mb-0">Actions</h5></div>
             <div class="card-body">
@@ -58,6 +58,23 @@
                 <form method="POST" action="{{ url_for('reports.close_report', report_id=report.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-outline-success w-100" onclick="return confirm('Close this report?')"><i class="fas fa-check-circle"></i> Close Report</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+        {% if current_user.role == 'report_admin' %}
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0">Set Severity</h5></div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.update_report_severity', report_id=report.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <select name="severity" class="form-select mb-2">
+                        <option value="low" {% if report.severity == 'low' %}selected{% endif %}>Low</option>
+                        <option value="medium" {% if report.severity == 'medium' %}selected{% endif %}>Medium</option>
+                        <option value="high" {% if report.severity == 'high' %}selected{% endif %}>High</option>
+                        <option value="critical" {% if report.severity == 'critical' %}selected{% endif %}>Critical</option>
+                    </select>
+                    <button type="submit" class="btn btn-outline-danger w-100"><i class="fas fa-exclamation-circle"></i> Update Severity</button>
                 </form>
             </div>
         </div>

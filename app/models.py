@@ -74,6 +74,7 @@ class Report(db.Model):
     description = db.Column(db.Text, nullable=False)
     category = db.Column(db.String(64), nullable=False)
     status = db.Column(db.String(32), nullable=False, default='Received')
+    severity = db.Column(db.String(32), nullable=False, default='medium')
     outcome = db.Column(db.String(64), nullable=True)
     outcome_details = db.Column(db.Text, nullable=True)
     encrypted_data = db.Column(db.Text)

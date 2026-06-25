@@ -15,10 +15,14 @@ class ReportService:
     VALID_OUTCOMES = ['action_taken', 'dismissed', 'referred', 'insufficient_evidence']
     VALID_TRANSFERS = {'Received': ['Triaged'], 'Triaged': ['Investigating'], 'Investigating': ['Resolved'], 'Resolved': []}
 
+    VALID_SEVERITIES = ['low', 'medium', 'high', 'critical']
+
     @staticmethod
-    def create_report(user, title, description, category, evidence_files=None):
+    def create_report(user, title, description, category, severity='medium', evidence_files=None):
         if category not in ReportService.VALID_CATEGORIES:
             return None, "Invalid report category"
+        if severity not in ReportService.VALID_SEVERITIES:
+            return None, "Invalid severity level"
         title = InputValidator.sanitize_html(title)
         description = InputValidator.sanitize_html(description)
         if len(title) > 255:
@@ -34,7 +38,7 @@ class ReportService:
         while Report.query.filter_by(reference_number=reference_number).first():
             reference_number = crypto_service.generate_reference_number()
 
-        report = Report(submitter_hash=submitter_hash, title=title, description=description, category=category, encrypted_data=encrypted_data, user_id=user.id, reference_number=reference_number)
+        report = Report(submitter_hash=submitter_hash, title=title, description=description, category=category, severity=severity, encrypted_data=encrypted_data, user_id=user.id, reference_number=reference_number)
         db.session.add(report)
         db.session.flush()
 
@@ -81,7 +85,7 @@ class ReportService:
             return Report.query.filter_by(user_id=user.id).all()
         elif user.role == 'investigator':
             return Report.query.filter_by(investigator_id=user.id).all()
-        elif user.role in ['admin', 'system_admin']:
+        elif user.role == 'report_admin':
             return Report.query.all()
         return []
 
@@ -101,7 +105,20 @@ class ReportService:
         elif user.role == 'investigator':
             if report.investigator_id != user.id:
                 return None, "You are not authorized to view this report. It is assigned to another investigator."
+        elif user.role != 'report_admin':
+            return None, "You are not authorized to view this report"
         return report, None
+
+    @staticmethod
+    def update_report_severity(report, new_severity, acting_user):
+        if new_severity not in ReportService.VALID_SEVERITIES:
+            return False, "Invalid severity level"
+        old_severity = report.severity
+        report.severity = new_severity
+        report.updated_at = datetime.utcnow()
+        db.session.commit()
+        crypto_service.log_audit_action(action='status_update', acting_user=acting_user, acting_role=acting_user.role, target_type='report', target_id=report.id, details=f'Severity changed from {old_severity} to {new_severity}')
+        return True, f"Severity updated to {new_severity}"
 
     @staticmethod
     def update_report_status(report, new_status, acting_user):
@@ -173,6 +190,8 @@ class ReportService:
             query = query.filter_by(category=filters['category'])
         if filters.get('status'):
             query = query.filter_by(status=filters['status'])
+        if filters.get('severity'):
+            query = query.filter_by(severity=filters['severity'])
         if filters.get('investigator_id'):
             query = query.filter_by(investigator_id=filters['investigator_id'])
         if filters.get('date_from'):

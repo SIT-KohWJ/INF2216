@@ -19,7 +19,7 @@ def init_db():
             {'email': 'whistleblower1@sit.singaporetech.edu.sg', 'password': 'Password123!', 'first_name': 'Alice', 'last_name': 'Tan', 'role': 'whistleblower'},
             {'email': 'whistleblower2@sit.singaporetech.edu.sg', 'password': 'Password123!', 'first_name': 'Bob', 'last_name': 'Lim', 'role': 'whistleblower'},
             {'email': 'investigator1@sit.singaporetech.edu.sg', 'password': 'Password123!', 'first_name': 'Charlie', 'last_name': 'Wong', 'role': 'investigator'},
-            {'email': 'admin@sit.singaporetech.edu.sg', 'password': 'Admin123!', 'first_name': 'Admin', 'last_name': 'User', 'role': 'admin'},
+            {'email': 'reportadmin@sit.singaporetech.edu.sg', 'password': 'Admin123!', 'first_name': 'Report', 'last_name': 'Admin', 'role': 'report_admin'},
             {'email': 'sysadmin@sit.singaporetech.edu.sg', 'password': 'Sysadmin123!', 'first_name': 'System', 'last_name': 'Admin', 'role': 'system_admin'},
         ]
 
@@ -40,16 +40,16 @@ def init_db():
         existing_reports = Report.query.count()
         if existing_reports == 0 and len(whistleblowers) > 0:
             test_reports = [
-                {'user': whistleblowers[0], 'title': 'Academic Misconduct Report', 'description': 'Observed a student submitting plagiarized work.', 'category': 'academic_misconduct', 'status': 'Received'},
-                {'user': whistleblowers[1] if len(whistleblowers) > 1 else whistleblowers[0], 'title': 'Financial Concern', 'description': 'Noticed irregularities in departmental expense reports.', 'category': 'financial_misconduct', 'status': 'Triaged'},
-                {'user': whistleblowers[0], 'title': 'Harassment Incident', 'description': 'Witnessed inappropriate behavior in the workplace.', 'category': 'harassment', 'status': 'Investigating'},
+                {'user': whistleblowers[0], 'title': 'Academic Misconduct Report', 'description': 'Observed a student submitting plagiarized work.', 'category': 'academic_misconduct', 'severity': 'medium', 'status': 'Received'},
+                {'user': whistleblowers[1] if len(whistleblowers) > 1 else whistleblowers[0], 'title': 'Financial Concern', 'description': 'Noticed irregularities in departmental expense reports.', 'category': 'financial_misconduct', 'severity': 'high', 'status': 'Triaged'},
+                {'user': whistleblowers[0], 'title': 'Harassment Incident', 'description': 'Witnessed inappropriate behavior in the workplace.', 'category': 'harassment', 'severity': 'critical', 'status': 'Investigating'},
             ]
 
             for report_data in test_reports:
                 report_json = {'title': report_data['title'], 'description': report_data['description'], 'category': report_data['category']}
                 encrypted_data = crypto_service.encrypt_data(json.dumps(report_json))
                 reference_number = crypto_service.generate_reference_number()
-                report = Report(submitter_hash=crypto_service.generate_user_hash(report_data['user'].id), title=report_data['title'], description=report_data['description'], category=report_data['category'], status=report_data['status'], encrypted_data=encrypted_data, user_id=report_data['user'].id, reference_number=reference_number)
+                report = Report(submitter_hash=crypto_service.generate_user_hash(report_data['user'].id), title=report_data['title'], description=report_data['description'], category=report_data['category'], severity=report_data['severity'], status=report_data['status'], encrypted_data=encrypted_data, user_id=report_data['user'].id, reference_number=reference_number)
                 if report_data['status'] != 'Received' and investigators:
                     report.investigator_id = investigators[0].id
                 if report_data['status'] == 'Investigating':

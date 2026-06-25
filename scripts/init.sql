@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS reports (
     description      TEXT         NOT NULL,
     category         VARCHAR(64)  NOT NULL,
     status           VARCHAR(32)  NOT NULL DEFAULT 'Received',
+    severity         VARCHAR(32)  NOT NULL DEFAULT 'medium',
     outcome          VARCHAR(64),
     outcome_details  TEXT,
     encrypted_data   TEXT,                                  -- AES-256-GCM ciphertext (base64) of the report payload
