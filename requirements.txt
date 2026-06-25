@@ -11,6 +11,7 @@ psycopg2-binary==2.9.10
 Flask-Login==0.6.3
 Flask-WTF==1.2.2          # CSRF protection (B5)
 WTForms==3.1.2
+email-validator==2.2.0   # required by WTForms Email() on login/register forms
 Flask-Limiter==3.8.0      # per-IP rate limiting (C1, C2)
 
 # Crypto: AES-256-GCM field/file encryption (A3), HMAC anonymity (A2),
