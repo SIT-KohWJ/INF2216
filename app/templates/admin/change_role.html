@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Change Role - SITinform{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark"><h4 class="mb-0"><i class="fas fa-user-shield"></i> Change Role</h4></div>
+            <div class="card-body">
+                <p>User: <strong>{{ target_user.full_name }}</strong> ({{ target_user.email }})</p>
+                <p>Current Role: <span class="badge bg-secondary">{{ get_role_display_name(target_user.role) }}</span></p>
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">{{ form.role.label(class="form-label") }} {{ form.role(class="form-select") }}</div>
+                    <div class="d-grid">{{ form.submit(class="btn btn-warning") }}</div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

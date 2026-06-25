@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Delete Account - SITinform{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="fas fa-trash-alt"></i> Delete Account</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> This action cannot be undone.
+                </div>
+                <p>When you delete your account:</p>
+                <ul>
+                    <li>Your personal information will be removed</li>
+                    <li>Your submitted reports will be <strong>preserved</strong></li>
+                    <li>Audit logs will be <strong>preserved</strong></li>
+                </ul>
+                <form method="POST" action="{{ url_for('auth.delete_account') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger btn-lg" onclick="return confirm('Are you sure?')">
+                            <i class="fas fa-trash-alt"></i> Delete My Account
+                        </button>
+                    </div>
+                </form>
+                <div class="mt-3 text-center">
+                    <a href="{{ url_for('reports.dashboard') }}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
