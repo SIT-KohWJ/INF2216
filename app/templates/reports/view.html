@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Report {{ report.reference_number }} - SITinform{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2><i class="fas fa-file-alt"></i> Report {{ report.reference_number }}</h2>
+        <span class="badge {{ get_report_status_css(report.status) }} fs-6">{{ report.status }}</span>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0">Report Details</h5></div>
+            <div class="card-body">
+                <h4>{{ report.title }}</h4>
+                <p class="text-muted">Category: {{ get_category_display_name(report.category) }}{% if current_user.role != 'whistleblower' %} | Severity: <span class="badge {% if report.severity == 'critical' %}bg-danger{% elif report.severity == 'high' %}bg-warning text-dark{% elif report.severity == 'medium' %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ report.severity|capitalize }}</span>{% endif %} | Submitted: {{ format_datetime(report.created_at) }}</p>
+                {% if decrypted_data %}
+                <p>{{ decrypted_data.description }}</p>
+                {% else %}
+                <p>{{ report.description }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% if evidence %}
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0"><i class="fas fa-paperclip"></i> Evidence ({{ evidence|length }} files)</h5></div>
+            <div class="card-body">
+                {% for e in evidence %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span><i class="fas fa-file"></i> {{ e.original_filename }} ({{ format_bytes(e.file_size) }})</span>
+                    <a href="{{ url_for('reports.download_evidence', evidence_id=e.id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-download"></i> Download</a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% if notes %}
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0"><i class="fas fa-sticky-note"></i> Investigation Notes</h5></div>
+            <div class="card-body">
+                {% for note in notes %}
+                <div class="border-bottom pb-2 mb-2">
+                    <small class="text-muted">{{ format_datetime(note.created_at) }}</small>
+                    <p class="mb-0">{{ note.note }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="col-md-4">
+        {% if current_user.role in ['investigator', 'report_admin'] %}
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0">Actions</h5></div>
+            <div class="card-body">
+                <a href="{{ url_for('reports.add_investigation_note', report_id=report.id) }}" class="btn btn-outline-primary w-100 mb-2"><i class="fas fa-sticky-note"></i> Add Note</a>
+                <a href="{{ url_for('reports.recommend_outcome', report_id=report.id) }}" class="btn btn-outline-warning w-100 mb-2"><i class="fas fa-gavel"></i> Recommend Outcome</a>
+                <form method="POST" action="{{ url_for('reports.close_report', report_id=report.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-success w-100" onclick="return confirm('Close this report?')"><i class="fas fa-check-circle"></i> Close Report</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+        {% if current_user.role == 'report_admin' %}
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0">Set Severity</h5></div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.update_report_severity', report_id=report.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <select name="severity" class="form-select mb-2">
+                        <option value="low" {% if report.severity == 'low' %}selected{% endif %}>Low</option>
+                        <option value="medium" {% if report.severity == 'medium' %}selected{% endif %}>Medium</option>
+                        <option value="high" {% if report.severity == 'high' %}selected{% endif %}>High</option>
+                        <option value="critical" {% if report.severity == 'critical' %}selected{% endif %}>Critical</option>
+                    </select>
+                    <button type="submit" class="btn btn-outline-danger w-100"><i class="fas fa-exclamation-circle"></i> Update Severity</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+        {% if history %}
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0"><i class="fas fa-history"></i> Status History</h5></div>
+            <div class="card-body">
+                {% for h in history %}
+                <div class="border-bottom pb-2 mb-2">
+                    <small class="text-muted">{{ format_datetime(h.changed_at) }}</small>
+                    <p class="mb-0">{{ h.old_status }} → {{ h.new_status }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

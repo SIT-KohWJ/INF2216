@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Notifications - SITinform{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12"><h2><i class="fas fa-bell"></i> Notifications</h2></div>
+</div>
+<div class="row">
+    <div class="col-12">
+        {% if notifications %}
+        <div class="list-group">
+            {% for notif in notifications %}
+            <div class="list-group-item {{ '' if notif.read else 'list-group-item-primary' }}">
+                <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">{{ notif.message }}</h6>
+                    <small class="text-muted">{{ format_datetime(notif.created_at) }}</small>
+                </div>
+                {% if not notif.read %}
+                <form method="POST" action="{{ url_for('reports.mark_notification_read', notification_id=notif.id) }}" class="mt-1">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Mark as read</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-info"><i class="fas fa-info-circle"></i> No notifications yet.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

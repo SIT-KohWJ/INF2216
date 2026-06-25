@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Manage Reports - SITinform{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12"><h2><i class="fas fa-file-alt"></i> Manage Reports</h2></div>
+</div>
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0"><i class="fas fa-filter"></i> Filter Reports</h6></div>
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('admin.manage_reports') }}" class="row g-3">
+                    <div class="col-md-3">
+                        <select name="category" class="form-select">
+                            <option value="">All Categories</option>
+                            <option value="academic_misconduct" {% if filters.get('category') == 'academic_misconduct' %}selected{% endif %}>Academic Misconduct</option>
+                            <option value="financial_misconduct" {% if filters.get('category') == 'financial_misconduct' %}selected{% endif %}>Financial Misconduct</option>
+                            <option value="harassment" {% if filters.get('category') == 'harassment' %}selected{% endif %}>Harassment</option>
+                            <option value="policy_violation" {% if filters.get('category') == 'policy_violation' %}selected{% endif %}>Policy Violation</option>
+                            <option value="ethical_concern" {% if filters.get('category') == 'ethical_concern' %}selected{% endif %}>Ethical Concern</option>
+                            <option value="other" {% if filters.get('category') == 'other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="status" class="form-select">
+                            <option value="">All Statuses</option>
+                            <option value="Received" {% if filters.get('status') == 'Received' %}selected{% endif %}>Received</option>
+                            <option value="Triaged" {% if filters.get('status') == 'Triaged' %}selected{% endif %}>Triaged</option>
+                            <option value="Investigating" {% if filters.get('status') == 'Investigating' %}selected{% endif %}>Investigating</option>
+                            <option value="Resolved" {% if filters.get('status') == 'Resolved' %}selected{% endif %}>Resolved</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="severity" class="form-select">
+                            <option value="">All Severities</option>
+                            <option value="low" {% if filters.get('severity') == 'low' %}selected{% endif %}>Low</option>
+                            <option value="medium" {% if filters.get('severity') == 'medium' %}selected{% endif %}>Medium</option>
+                            <option value="high" {% if filters.get('severity') == 'high' %}selected{% endif %}>High</option>
+                            <option value="critical" {% if filters.get('severity') == 'critical' %}selected{% endif %}>Critical</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ filters.get('search', '') }}">
+                    </div>
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                {% if reports %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead><tr><th>Reference</th><th>Title</th><th>Category</th><th>Severity</th><th>Status</th><th>Investigator</th><th>Submitted</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {% for report in reports %}
+                            <tr>
+                                <td><code>{{ report.reference_number }}</code></td>
+                                <td>{{ report.title }}</td>
+                                <td>{{ get_category_display_name(report.category) }}</td>
+                                <td><span class="badge {% if report.severity == 'critical' %}bg-danger{% elif report.severity == 'high' %}bg-warning text-dark{% elif report.severity == 'medium' %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ report.severity|capitalize }}</span></td>
+                                <td><span class="badge {{ get_report_status_css(report.status) }}">{{ report.status }}</span></td>
+                                <td>
+                                    {% if report.investigator_id %}
+                                        {% for inv in investigators %}
+                                            {% if inv.id == report.investigator_id %}{{ inv.full_name }}{% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ format_date(report.created_at) }}</td>
+                                <td>
+                                    <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
+                                    {% if not report.investigator_id %}
+                                    <a href="{{ url_for('admin.assign_investigator', report_id=report.id) }}" class="btn btn-sm btn-outline-warning"><i class="fas fa-user-plus"></i></a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info"><i class="fas fa-info-circle"></i> No reports found.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
