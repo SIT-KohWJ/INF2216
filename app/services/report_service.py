@@ -101,12 +101,12 @@ class ReportService:
         if user.role == 'whistleblower':
             if not crypto_service.verify_user_hash(user.id, report.submitter_hash):
                 if report.user_id != user.id:
-                    return None, "You are not authorized to view this report"
+                    return None, "Report not found"
         elif user.role == 'investigator':
             if report.investigator_id != user.id:
-                return None, "You are not authorized to view this report. It is assigned to another investigator."
+                return None, "Report not found"
         elif user.role != 'report_admin':
-            return None, "You are not authorized to view this report"
+            return None, "Report not found"
         return report, None
 
     @staticmethod
@@ -156,7 +156,7 @@ class ReportService:
         if outcome not in ReportService.VALID_OUTCOMES:
             return False, "Invalid outcome"
         if acting_user.role == 'investigator' and report.investigator_id != acting_user.id:
-            return False, "Not authorized to recommend outcome for this report"
+            return False, "Report not found"
         report.outcome = outcome
         report.outcome_details = InputValidator.sanitize_html(outcome_details)
         report.updated_at = datetime.utcnow()
