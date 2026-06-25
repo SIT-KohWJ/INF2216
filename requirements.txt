@@ -20,7 +20,7 @@ bcrypt==4.2.1
 pycryptodome==3.21.0     # bumped from 3.18.0 (clears stale pip-audit advisories)
 
 # Input safety / file validation
-bleach==6.2.0            # XSS sanitisation (B2)
+bleach==6.4.0            # XSS sanitisation (B2)
 python-magic==0.4.27     # magic-byte MIME validation (B3, B7)
 
 # Local dev convenience

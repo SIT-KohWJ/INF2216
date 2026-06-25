@@ -167,7 +167,7 @@ def export_audit_logs():
     import json
     from flask import Response
     logs = AuditService.get_report_audit_logs(limit=10000)
-    data = [{'id': l.id, 'timestamp': l.timestamp.isoformat() if l.timestamp else None, 'action': l.action, 'acting_role': l.acting_role, 'target_type': l.target_type, 'target_id': l.target_id, 'details': l.details, 'ip_address': l.ip_address} for l in logs]
+    data = [{'id': log.id, 'timestamp': log.timestamp.isoformat() if log.timestamp else None, 'action': log.action, 'acting_role': log.acting_role, 'target_type': log.target_type, 'target_id': log.target_id, 'details': log.details, 'ip_address': log.ip_address} for log in logs]
     response = Response(json.dumps(data, indent=2), mimetype='application/json', headers={'Content-Disposition': 'attachment; filename=report_audit_logs.json'})
     crypto_service.log_audit_action(action='audit_log_export', acting_user=current_user, acting_role=current_user.role, details='Report audit logs exported')
     return response
