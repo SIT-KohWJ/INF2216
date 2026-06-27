@@ -7,6 +7,7 @@ from flask import current_app
 import json
 import uuid
 import base64
+import magic
 
 
 class ReportService:
@@ -29,6 +30,16 @@ class ReportService:
             return None, "Title must be 255 characters or less"
         if len(description) > 10000:
             return None, "Description must be 10000 characters or less"
+
+        if evidence_files:
+            allowed_exts = current_app.config.get('ALLOWED_EXTENSIONS', {'pdf', 'docx', 'png', 'jpg', 'jpeg'})
+            for file in evidence_files:
+                file_content = file.read()
+                file.seek(0)
+                if not FileValidator.validate_file_type(file_content, allowed_exts):
+                    from werkzeug.utils import secure_filename
+                    safe_name = secure_filename(file.filename)
+                    return None, f"'{safe_name}' is not a valid file. Only real PDF, DOCX, PNG, and JPG files are accepted."
 
         submitter_hash = crypto_service.generate_user_hash(user.id)
         report_data = {'title': title, 'description': description, 'category': category, 'submitter_email': user.email, 'submitter_name': user.full_name}
@@ -74,7 +85,8 @@ class ReportService:
         stored_filename = f"{uuid.uuid4().hex}_{original_filename}"
         encrypted_b64 = crypto_service.encrypt_data(file_content)
         raw_encrypted = base64.b64decode(encrypted_b64)
-        evidence = Evidence(report_id=report_id, original_filename=original_filename, stored_filename=stored_filename, file_type=file.content_type or 'application/octet-stream', file_size=file_size, encrypted_file_data=raw_encrypted)
+        detected_mime = magic.from_buffer(file_content[:2048], mime=True)
+        evidence = Evidence(report_id=report_id, original_filename=original_filename, stored_filename=stored_filename, file_type=detected_mime or 'application/octet-stream', file_size=file_size, encrypted_file_data=raw_encrypted)
         db.session.add(evidence)
         db.session.commit()
         return evidence, "Evidence uploaded successfully"

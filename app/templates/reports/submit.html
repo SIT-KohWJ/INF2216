@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Submit Report - SITinform{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
@@ -24,8 +27,16 @@
                     </div>
                     <div class="mb-3">
                         {{ form.evidence.label(class="form-label") }}
-                        {{ form.evidence(class="form-control", multiple=true) }}
-                        <div class="form-text">Allowed: PDF, DOCX, PNG, JPG (max 10MB)</div>
+                        {{ form.evidence(id="evidenceInput", multiple=true, accept=".pdf,.docx,.png,.jpg,.jpeg", class="d-none") }}
+
+                        <div id="dropzone">
+                            <i class="fas fa-cloud-upload-alt fa-2x mb-2 text-secondary"></i>
+                            <p class="mb-1">Drag &amp; drop files here or <span id="dropzone-browse">browse</span></p>
+                            <small class="text-muted">Up to 5 files; PDF, DOCX, PNG, JPG; max 10MB each</small>
+                        </div>
+
+                        <div id="file-error" class="alert alert-danger mt-2 d-none"></div>
+                        <div id="file-list" class="mt-2"></div>
                     </div>
                     <div class="d-grid">
                         {{ form.submit(class="btn btn-primary btn-lg") }}

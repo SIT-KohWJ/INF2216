@@ -7,3 +7,45 @@ body {
 .badge {
     font-size: 0.85em;
 }
+
+/* ── File upload dropzone ─────────────────────────────────────────────────── */
+#dropzone {
+    border: 2px dashed #adb5bd;
+    border-radius: 0.5rem;
+    padding: 2rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+    background-color: #fff;
+}
+#dropzone:hover,
+#dropzone.dragover {
+    border-color: #0d6efd;
+    background-color: #f0f6ff;
+}
+#dropzone-browse {
+    color: #0d6efd;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* Individual file cards */
+.file-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.9rem;
+    border-radius: 0.4rem;
+    border: 1px solid #dee2e6;
+    background: #fff;
+    margin-bottom: 0.4rem;
+}
+.file-card.valid   { border-left: 4px solid #198754; }
+.file-card.invalid { border-left: 4px solid #dc3545; }
+.file-card .file-icon  { font-size: 1.4rem; flex-shrink: 0; }
+.file-card .file-info  { flex: 1; min-width: 0; }
+.file-card .file-name  { font-size: 0.9rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-card .file-size  { font-size: 0.78rem; color: #6c757d; }
+.file-card .file-badge { font-size: 0.75rem; }
+.file-card .btn-remove { flex-shrink: 0; border: none; background: none; color: #adb5bd; font-size: 1.1rem; line-height: 1; padding: 0 0.2rem; cursor: pointer; }
+.file-card .btn-remove:hover { color: #dc3545; }

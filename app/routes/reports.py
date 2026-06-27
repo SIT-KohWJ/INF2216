@@ -44,15 +44,19 @@ def submit_report():
         abort(403)
     form = ReportForm()
     if form.validate_on_submit():
+        MAX_EVIDENCE_FILES = 5
         evidence_files = []
         if 'evidence' in request.files:
-            for file in request.files.getlist('evidence'):
-                if file.filename != '':
-                    if ReportService._is_allowed_file(file.filename):
-                        evidence_files.append(file)
-                    else:
-                        flash(f'File {file.filename} is not allowed. Allowed types: PDF, DOCX, PNG, JPG', 'danger')
-                        return redirect(request.url)
+            all_files = [f for f in request.files.getlist('evidence') if f.filename != '']
+            if len(all_files) > MAX_EVIDENCE_FILES:
+                flash(f'Maximum {MAX_EVIDENCE_FILES} files allowed per submission.', 'danger')
+                return redirect(request.url)
+            for file in all_files:
+                if ReportService._is_allowed_file(file.filename):
+                    evidence_files.append(file)
+                else:
+                    flash(f'File {file.filename} is not allowed. Allowed types: PDF, DOCX, PNG, JPG', 'danger')
+                    return redirect(request.url)
         report, message = ReportService.create_report(user=current_user, title=form.title.data, description=form.description.data, category=form.category.data, evidence_files=evidence_files)
         if report:
             flash(message, 'success')
