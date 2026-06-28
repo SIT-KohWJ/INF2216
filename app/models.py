@@ -22,6 +22,7 @@ class User(UserMixin, db.Model):
 
     reports = db.relationship('Report', backref='submitter', lazy=True, foreign_keys='Report.user_id')
     investigation_notes = db.relationship('InvestigationNote', backref='investigator', lazy=True, foreign_keys='InvestigationNote.investigator_id')
+    investigation_plans = db.relationship('InvestigationPlan', backref='assigned_investigator', lazy=True, foreign_keys='InvestigationPlan.investigator_id')
     notifications = db.relationship('Notification', backref='user', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
@@ -86,6 +87,7 @@ class Report(db.Model):
     status_history = db.relationship('ReportStatusHistory', backref='report', lazy=True, cascade='all, delete-orphan')
     evidence = db.relationship('Evidence', backref='report', lazy=True, cascade='all, delete-orphan')
     investigation_notes = db.relationship('InvestigationNote', backref='report', lazy=True, cascade='all, delete-orphan')
+    investigation_plan = db.relationship('InvestigationPlan', backref='report', uselist=False, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Report {self.reference_number} - {self.status}>'
@@ -122,6 +124,22 @@ class InvestigationNote(db.Model):
     report_id = db.Column(db.String(36), db.ForeignKey('reports.id'), nullable=False)
     investigator_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     note = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class InvestigationPlan(db.Model):
+    __tablename__ = 'investigation_plans'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    report_id = db.Column(db.String(36), db.ForeignKey('reports.id'), nullable=False, unique=True)
+    investigator_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    investigator_full_name = db.Column(db.String(128), nullable=False)
+    investigator_job_title = db.Column(db.String(128), nullable=False)
+    investigator_staff_id = db.Column(db.String(64), nullable=False)
+    planning_date = db.Column(db.Date, nullable=False)
+    case_overview = db.Column(db.Text, nullable=False)
+    incident_when = db.Column(db.DateTime, nullable=False)
+    incident_where = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 

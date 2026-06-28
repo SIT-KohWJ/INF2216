@@ -4,8 +4,9 @@ from app.services.report_service import ReportService
 from app.services.auth_service import AuthService
 from app import limiter
 from app.services.crypto_service import crypto_service
-from app.forms import ReportForm, InvestigationNoteForm, OutcomeForm
+from app.forms import ReportForm, InvestigationNoteForm, InvestigationPlanForm, OutcomeForm
 from app.models import Evidence
+from datetime import date, datetime
 import io
 
 reports_bp = Blueprint('reports', __name__)
@@ -79,8 +80,66 @@ def view_report(report_id):
     evidence = ReportService.get_evidence_for_report(report_id)
     notes = ReportService.get_investigation_notes(report_id)
     history = ReportService.get_report_audit_history(report_id)
+    investigation_action_block_reason = ReportService.get_investigation_action_block_reason(report)
+    close_block_reason = ReportService.get_close_block_reason(report)
     crypto_service.log_audit_action(action='report_viewed', acting_user=current_user, acting_role=current_user.role, target_type='report', target_id=report.id, details=f'Report {report.reference_number} viewed')
-    return render_template('reports/view.html', report=report, decrypted_data=decrypted_data, evidence=evidence, notes=notes, history=history)
+    return render_template('reports/view.html', report=report, decrypted_data=decrypted_data, evidence=evidence, notes=notes, history=history, can_manage_investigation_actions=investigation_action_block_reason is None, investigation_action_block_reason=investigation_action_block_reason, can_close_report=close_block_reason is None, close_block_reason=close_block_reason)
+
+
+@reports_bp.route('/<report_id>/investigation-plan', methods=['GET', 'POST'])
+@login_required
+def investigation_plan(report_id):
+    report, error = ReportService.get_report_by_id(report_id, current_user)
+    if error:
+        flash(error, 'warning')
+        if current_user.role == 'investigator':
+            return redirect(url_for('reports.investigator_dashboard'))
+        return redirect(url_for('admin.manage_reports'))
+
+    if current_user.role not in ['investigator', 'report_admin']:
+        abort(403)
+
+    plan = ReportService.get_investigation_plan(report.id)
+
+    def populate_incident_fields(form, plan_record):
+        if not plan_record or not plan_record.incident_when:
+            return
+
+        incident_when = plan_record.incident_when
+        if isinstance(incident_when, str):
+            try:
+                incident_when = datetime.fromisoformat(incident_when.strip())
+            except ValueError:
+                return
+
+        if isinstance(incident_when, datetime):
+            form.incident_date.data = incident_when.date()
+            form.incident_time.data = incident_when.time().replace(second=0, microsecond=0)
+
+    if current_user.role == 'report_admin':
+        if request.method == 'POST':
+            abort(403)
+        if plan is None:
+            abort(404)
+        form = InvestigationPlanForm(obj=plan)
+        populate_incident_fields(form, plan)
+        return render_template('reports/investigation_plan.html', form=form, report=report, read_only=True, page_mode='view')
+
+    form = InvestigationPlanForm(obj=plan) if plan else InvestigationPlanForm()
+    if request.method == 'GET':
+        if plan is None:
+            form.investigator_full_name.data = current_user.full_name
+            form.planning_date.data = date.today()
+        else:
+            populate_incident_fields(form, plan)
+
+    if form.validate_on_submit():
+        _, message = ReportService.create_or_update_investigation_plan(report=report, investigator=current_user, form=form)
+        flash(message, 'success')
+        return redirect(url_for('reports.view_report', report_id=report.id))
+
+    page_mode = 'edit' if plan else 'create'
+    return render_template('reports/investigation_plan.html', form=form, report=report, read_only=False, page_mode=page_mode)
 
 
 @reports_bp.route('/<report_id>/add_note', methods=['GET', 'POST'])
@@ -89,9 +148,15 @@ def add_investigation_note(report_id):
     report, error = ReportService.get_report_by_id(report_id, current_user)
     if error:
         flash(error, 'warning')
-        return redirect(url_for('reports.investigator_dashboard'))
+        if current_user.role == 'investigator':
+            return redirect(url_for('reports.investigator_dashboard'))
+        return redirect(url_for('admin.manage_reports'))
     if current_user.role not in ['investigator', 'report_admin']:
         abort(403)
+    block_reason = ReportService.get_investigation_action_block_reason(report)
+    if block_reason:
+        flash(block_reason, 'warning')
+        return redirect(url_for('reports.view_report', report_id=report_id))
     form = InvestigationNoteForm()
     if form.validate_on_submit():
         note, message = ReportService.add_investigation_note(report=report, investigator=current_user, note=form.note.data)
@@ -99,7 +164,7 @@ def add_investigation_note(report_id):
             flash(message, 'success')
             return redirect(url_for('reports.view_report', report_id=report_id))
         else:
-            flash('Failed to add note', 'danger')
+            flash(message, 'danger')
     return render_template('reports/add_note.html', form=form, report=report)
 
 
@@ -109,9 +174,15 @@ def recommend_outcome(report_id):
     report, error = ReportService.get_report_by_id(report_id, current_user)
     if error:
         flash(error, 'warning')
-        return redirect(url_for('reports.investigator_dashboard'))
+        if current_user.role == 'investigator':
+            return redirect(url_for('reports.investigator_dashboard'))
+        return redirect(url_for('admin.manage_reports'))
     if current_user.role not in ['investigator', 'report_admin']:
         abort(403)
+    block_reason = ReportService.get_investigation_action_block_reason(report)
+    if block_reason:
+        flash(block_reason, 'warning')
+        return redirect(url_for('reports.view_report', report_id=report_id))
     form = OutcomeForm()
     if form.validate_on_submit():
         success, message = ReportService.recommend_outcome(report=report, outcome=form.outcome.data, outcome_details=form.outcome_details.data, acting_user=current_user)
@@ -129,7 +200,9 @@ def close_report(report_id):
     report, error = ReportService.get_report_by_id(report_id, current_user)
     if error:
         flash(error, 'warning')
-        return redirect(url_for('reports.investigator_dashboard'))
+        if current_user.role == 'investigator':
+            return redirect(url_for('reports.investigator_dashboard'))
+        return redirect(url_for('admin.manage_reports'))
     if current_user.role not in ['investigator', 'report_admin']:
         abort(403)
     success, message = ReportService.close_report(report, current_user)

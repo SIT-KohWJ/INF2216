@@ -2,7 +2,7 @@
 
 A secure, web-based whistleblowing platform built exclusively for the Singapore Institute of Technology (SIT) community. Authenticated members can raise sensitive concerns — misconduct, policy violations, ethical issues — while staying anonymous from start to finish. Access is gated by SIT institutional email, but the platform is built so that **even an administrator with full database access cannot tell who submitted a report**: each report is tied to a one-way `HMAC-SHA256` hash of the user's ID rather than the ID itself, so the link between a person and their report can never be reversed.
 
-Reports move through a clear lifecycle — **Received → Triaged → Investigating → Resolved** — and every administrative action is written to an append-only audit log.
+Reports move through a clear lifecycle — **Received → Triaged → Planning → Investigating → Under Review → Closed** — and every administrative action is written to an append-only audit log.
 
 > Module: ICT2216 — Secure Software Development · Team 13
 
