@@ -6,6 +6,7 @@ name: Branch policy
 #   securityfeature/*-> develop
 #   enhancement/*    -> develop
 #   bugfix/*         -> develop
+#   main             -> develop   (back-merge after hotfixes)
 on:
   pull_request:
     types: [opened, reopened, edited, synchronize]
@@ -34,11 +35,11 @@ jobs:
               ;;
             develop)
               case "$HEAD" in
-                feature/*|securityfeature/*|enhancement/*|bugfix/*)
+                main|feature/*|securityfeature/*|enhancement/*|bugfix/*)
                   echo "OK: '$HEAD' -> develop"
                   ;;
                 *)
-                  echo "::error::Into 'develop' only feature/*, securityfeature/*, enhancement/* or bugfix/* are allowed (got '$HEAD')."
+                  echo "::error::Into 'develop' only main, feature/*, securityfeature/*, enhancement/* or bugfix/* are allowed (got '$HEAD')."
                   exit 1
                   ;;
               esac
