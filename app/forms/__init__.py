@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, BooleanField, TextAreaField, SelectField, FileField, DateField
+from wtforms import StringField, PasswordField, SubmitField, BooleanField, TextAreaField, SelectField, FileField, DateField, TimeField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Optional
 from app.services.auth_service import AuthService
 
@@ -68,6 +68,18 @@ class InvestigationNoteForm(FlaskForm):
     submit = SubmitField('Add Note')
 
 
+class InvestigationPlanForm(FlaskForm):
+    investigator_full_name = StringField('Investigator Full Name', validators=[DataRequired(), Length(max=128)])
+    investigator_job_title = StringField('Investigator Job Title', validators=[DataRequired(), Length(max=128)])
+    investigator_staff_id = StringField('Investigator Staff ID', validators=[DataRequired(), Length(max=64)])
+    planning_date = DateField('Planning Date', format='%Y-%m-%d', validators=[DataRequired()])
+    case_overview = TextAreaField('Case Overview', validators=[DataRequired(), Length(max=5000)])
+    incident_date = DateField('Incident Date', format='%Y-%m-%d', validators=[DataRequired()])
+    incident_time = TimeField('Incident Time', format='%H:%M', validators=[DataRequired()])
+    incident_where = StringField('Incident Where', validators=[DataRequired(), Length(max=255)])
+    submit = SubmitField('Save Investigation Plan')
+
+
 class OutcomeForm(FlaskForm):
     outcome = SelectField('Outcome', choices=[
         ('action_taken', 'Action Taken'), ('dismissed', 'Dismissed'),
@@ -114,7 +126,8 @@ class ReportFilterForm(FlaskForm):
     ], default='')
     status = SelectField('Status', choices=[
         ('', 'All Statuses'), ('Received', 'Received'), ('Triaged', 'Triaged'),
-        ('Investigating', 'Investigating'), ('Resolved', 'Resolved')
+        ('Planning', 'Planning'), ('Investigating', 'Investigating'),
+        ('Under Review', 'Under Review'), ('Closed', 'Closed')
     ], default='')
     search = StringField('Search')
     date_from = DateField('From Date', format='%Y-%m-%d', validators=[Optional()])

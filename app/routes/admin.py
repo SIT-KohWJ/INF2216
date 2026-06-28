@@ -26,15 +26,19 @@ def dashboard():
         total_reports = Report.query.count()
         received_reports = Report.query.filter_by(status='Received').count()
         triaged_reports = Report.query.filter_by(status='Triaged').count()
+        planning_reports = Report.query.filter_by(status='Planning').count()
         investigating_reports = Report.query.filter_by(status='Investigating').count()
-        resolved_reports = Report.query.filter_by(status='Resolved').count()
+        under_review_reports = Report.query.filter_by(status='Under Review').count()
+        closed_reports = Report.query.filter_by(status='Closed').count()
         recent_activity = AuditService.get_recent_report_activity(10)
         return render_template('admin/dashboard.html',
                                total_reports=total_reports,
                                received_reports=received_reports,
                                triaged_reports=triaged_reports,
+                               planning_reports=planning_reports,
                                investigating_reports=investigating_reports,
-                               resolved_reports=resolved_reports,
+                               under_review_reports=under_review_reports,
+                               closed_reports=closed_reports,
                                recent_activity=recent_activity)
     else:
         total_users = User.query.count()
@@ -128,14 +132,14 @@ def update_report_status(report_id):
         flash(error, 'warning')
         return redirect(url_for('admin.manage_reports'))
     new_status = request.form.get('status')
-    if new_status in ReportService.VALID_STATUSES:
-        success, message = ReportService.update_report_status(report=report, new_status=new_status, acting_user=current_user)
-        if success:
-            flash(message, 'success')
-        else:
-            flash(message, 'danger')
-    else:
+    if new_status != 'Triaged':
         flash('Invalid status', 'danger')
+        return redirect(url_for('admin.manage_reports'))
+    success, message = ReportService.update_report_status(report=report, new_status=new_status, acting_user=current_user)
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'danger')
     return redirect(url_for('admin.manage_reports'))
 
 
