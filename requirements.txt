@@ -21,7 +21,11 @@ pycryptodome==3.21.0     # bumped from 3.18.0 (clears stale pip-audit advisories
 
 # Input safety / file validation
 bleach==6.4.0            # XSS sanitisation (B2)
-python-magic==0.4.27     # magic-byte MIME validation (B3, B7)
+python-magic==0.4.27;     sys_platform != 'win32'  # magic-byte MIME validation (B3, B7)
+python-magic-bin==0.4.14; sys_platform == 'win32'  # bundles libmagic.dll for Windows
+
+# Email (OTP delivery for password reset via Brevo SMTP)
+Flask-Mail==0.10.0
 
 # Local dev convenience
 python-dotenv==1.2.2

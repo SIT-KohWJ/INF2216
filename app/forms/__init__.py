@@ -1,20 +1,33 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, BooleanField, TextAreaField, SelectField, FileField, DateField
-from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Optional
+from wtforms import (
+    BooleanField, DateField, FileField, HiddenField, PasswordField,
+    SelectField, StringField, SubmitField, TextAreaField,
+)
+from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError
+
 from app.services.auth_service import AuthService
 
+
+# ---------------------------------------------------------------------------
+# Auth forms
+# ---------------------------------------------------------------------------
 
 class RegistrationForm(FlaskForm):
     first_name = StringField('First Name', validators=[DataRequired(), Length(max=64)])
     last_name = StringField('Last Name', validators=[DataRequired(), Length(max=64)])
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=8)])
-    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
+    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password', message='Passwords do not match.')])
     submit = SubmitField('Register')
 
     def validate_email(self, email):
         if not AuthService.validate_email(email.data):
-            raise ValidationError('Must use @singaporetech.edu.sg or @sit.singaporetech.edu.sg email address')
+            raise ValidationError('Must use an @singaporetech.edu.sg or @sit.singaporetech.edu.sg email address.')
+
+    def validate_password(self, password):
+        valid, msg = AuthService.validate_password(password.data)
+        if not valid:
+            raise ValidationError(msg)
 
 
 class LoginForm(FlaskForm):
@@ -27,37 +40,60 @@ class LoginForm(FlaskForm):
 class PasswordChangeForm(FlaskForm):
     current_password = PasswordField('Current Password', validators=[DataRequired()])
     new_password = PasswordField('New Password', validators=[DataRequired(), Length(min=8)])
-    confirm_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('new_password')])
+    confirm_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('new_password', message='Passwords do not match.')])
     submit = SubmitField('Change Password')
 
     def validate_new_password(self, new_password):
-        if not AuthService.validate_password(new_password.data):
-            raise ValidationError('Password must be at least 8 characters with uppercase, lowercase, and digit')
+        valid, msg = AuthService.validate_password(new_password.data)
+        if not valid:
+            raise ValidationError(msg)
 
 
 class PasswordResetRequestForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
-    submit = SubmitField('Request Reset')
+    submit = SubmitField('Send OTP')
+
+    def validate_email(self, email):
+        if not AuthService.validate_email(email.data):
+            raise ValidationError('Must use an @singaporetech.edu.sg or @sit.singaporetech.edu.sg email address.')
+
+
+class OtpVerifyForm(FlaskForm):
+    otp = StringField('One-Time Password', validators=[DataRequired(), Length(min=6, max=6)])
+    submit = SubmitField('Verify OTP')
+
+    def validate_otp(self, otp):
+        if not otp.data.isdigit():
+            raise ValidationError('OTP must be a 6-digit number.')
 
 
 class PasswordResetForm(FlaskForm):
-    token = StringField('Reset Token', validators=[DataRequired()])
+    # Hidden field: pre-filled from the URL query-string in the route, not typed by the user.
+    token = HiddenField('Token', validators=[DataRequired()])
     new_password = PasswordField('New Password', validators=[DataRequired(), Length(min=8)])
-    confirm_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('new_password')])
+    confirm_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('new_password', message='Passwords do not match.')])
     submit = SubmitField('Reset Password')
 
     def validate_new_password(self, new_password):
-        if not AuthService.validate_password(new_password.data):
-            raise ValidationError('Password must be at least 8 characters with uppercase, lowercase, and digit')
+        valid, msg = AuthService.validate_password(new_password.data)
+        if not valid:
+            raise ValidationError(msg)
 
+
+# ---------------------------------------------------------------------------
+# Report forms
+# ---------------------------------------------------------------------------
 
 class ReportForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired(), Length(max=255)])
     description = TextAreaField('Description', validators=[DataRequired(), Length(max=10000)])
     category = SelectField('Category', choices=[
-        ('academic_misconduct', 'Academic Misconduct'), ('financial_misconduct', 'Financial Misconduct'),
-        ('harassment', 'Harassment'), ('policy_violation', 'Policy Violation'),
-        ('ethical_concern', 'Ethical Concern'), ('other', 'Other')
+        ('academic_misconduct', 'Academic Misconduct'),
+        ('financial_misconduct', 'Financial Misconduct'),
+        ('harassment', 'Harassment'),
+        ('policy_violation', 'Policy Violation'),
+        ('ethical_concern', 'Ethical Concern'),
+        ('other', 'Other'),
     ], validators=[DataRequired()])
     evidence = FileField('Evidence Files')
     submit = SubmitField('Submit Report')
@@ -70,8 +106,10 @@ class InvestigationNoteForm(FlaskForm):
 
 class OutcomeForm(FlaskForm):
     outcome = SelectField('Outcome', choices=[
-        ('action_taken', 'Action Taken'), ('dismissed', 'Dismissed'),
-        ('referred', 'Referred'), ('insufficient_evidence', 'Insufficient Evidence')
+        ('action_taken', 'Action Taken'),
+        ('dismissed', 'Dismissed'),
+        ('referred', 'Referred'),
+        ('insufficient_evidence', 'Insufficient Evidence'),
     ], validators=[DataRequired()])
     outcome_details = TextAreaField('Details', validators=[DataRequired(), Length(max=5000)])
     submit = SubmitField('Recommend Outcome')
@@ -88,33 +126,49 @@ class UserManagementForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=8)])
     role = SelectField('Role', choices=[
-        ('whistleblower', 'Whistleblower'), ('investigator', 'Investigator'),
-        ('report_admin', 'Report Admin'), ('system_admin', 'System Admin')
+        ('whistleblower', 'Whistleblower'),
+        ('investigator', 'Investigator'),
+        ('report_admin', 'Report Admin'),
+        ('system_admin', 'System Admin'),
     ], validators=[DataRequired()])
     submit = SubmitField('Create User')
 
     def validate_email(self, email):
         if not AuthService.validate_email(email.data):
-            raise ValidationError('Must use @singaporetech.edu.sg or @sit.singaporetech.edu.sg email address')
+            raise ValidationError('Must use an @singaporetech.edu.sg or @sit.singaporetech.edu.sg email address.')
+
+    def validate_password(self, password):
+        valid, msg = AuthService.validate_password(password.data)
+        if not valid:
+            raise ValidationError(msg)
 
 
 class RoleChangeForm(FlaskForm):
     role = SelectField('New Role', choices=[
-        ('whistleblower', 'Whistleblower'), ('investigator', 'Investigator'),
-        ('report_admin', 'Report Admin'), ('system_admin', 'System Admin')
+        ('whistleblower', 'Whistleblower'),
+        ('investigator', 'Investigator'),
+        ('report_admin', 'Report Admin'),
+        ('system_admin', 'System Admin'),
     ], validators=[DataRequired()])
     submit = SubmitField('Change Role')
 
 
 class ReportFilterForm(FlaskForm):
     category = SelectField('Category', choices=[
-        ('', 'All Categories'), ('academic_misconduct', 'Academic Misconduct'),
-        ('financial_misconduct', 'Financial Misconduct'), ('harassment', 'Harassment'),
-        ('policy_violation', 'Policy Violation'), ('ethical_concern', 'Ethical Concern'), ('other', 'Other')
+        ('', 'All Categories'),
+        ('academic_misconduct', 'Academic Misconduct'),
+        ('financial_misconduct', 'Financial Misconduct'),
+        ('harassment', 'Harassment'),
+        ('policy_violation', 'Policy Violation'),
+        ('ethical_concern', 'Ethical Concern'),
+        ('other', 'Other'),
     ], default='')
     status = SelectField('Status', choices=[
-        ('', 'All Statuses'), ('Received', 'Received'), ('Triaged', 'Triaged'),
-        ('Investigating', 'Investigating'), ('Resolved', 'Resolved')
+        ('', 'All Statuses'),
+        ('Received', 'Received'),
+        ('Triaged', 'Triaged'),
+        ('Investigating', 'Investigating'),
+        ('Resolved', 'Resolved'),
     ], default='')
     search = StringField('Search')
     date_from = DateField('From Date', format='%Y-%m-%d', validators=[Optional()])
