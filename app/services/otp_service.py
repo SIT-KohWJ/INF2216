@@ -109,14 +109,6 @@ class OtpService:
 
         otp = OtpService.create_otp_for_email(email)
 
-        # In debug mode, always print the OTP to the terminal so developers
-        # can test the flow without a registered account or SMTP server.
-        if current_app.debug:
-            expiry_seconds = current_app.config.get('OTP_EXPIRY_SECONDS', 30)
-            print(f"\n{'='*60}", flush=True)
-            print(f"  [DEV] OTP for {email}: {otp}  (expires in {expiry_seconds}s)", flush=True)
-            print(f"{'='*60}\n", flush=True)
-
         user = User.query.filter_by(email=email.lower(), is_active=True).first()
         if user:
             sent = EmailService.send_otp_email(email, otp, user.first_name)
