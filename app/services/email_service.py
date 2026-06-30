@@ -1,8 +1,4 @@
-"""Email delivery via Brevo SMTP (Flask-Mail).
-
-Falls back to terminal logging when MAIL_USERNAME is not configured so
-the app stays fully usable in local dev without credentials.
-"""
+"""Email delivery via Brevo SMTP (Flask-Mail)."""
 from flask import current_app
 
 
@@ -29,20 +25,13 @@ class EmailService:
         )
 
         mail_user = current_app.config.get('MAIL_USERNAME')
-        mail_server = current_app.config.get('MAIL_SERVER')
         mail_sender = current_app.config.get('MAIL_DEFAULT_SENDER')
 
-        print(f"[EMAIL] MAIL_USERNAME  = {mail_user!r}", flush=True)
-        print(f"[EMAIL] MAIL_SERVER    = {mail_server!r}", flush=True)
-        print(f"[EMAIL] MAIL_SENDER    = {mail_sender!r}", flush=True)
-        print(f"[EMAIL] Sending OTP to = {to_email!r}", flush=True)
-
         if not mail_user:
-            print("[EMAIL] No MAIL_USERNAME — printing OTP to terminal (dev fallback)", flush=True)
-            current_app.logger.warning(
-                "[BREVO-NOT-CONFIGURED] OTP for %s: %s", to_email, otp
+            current_app.logger.error(
+                "MAIL_USERNAME is not configured — OTP email could not be sent"
             )
-            return True
+            return False
 
         try:
             from flask_mail import Message
@@ -53,9 +42,7 @@ class EmailService:
                 sender=mail_sender,
             )
             cls._mail.send(msg)
-            print(f"[EMAIL] Sent successfully to {to_email}", flush=True)
             return True
         except Exception as exc:
-            print(f"[EMAIL] FAILED: {exc}", flush=True)
-            current_app.logger.error("Failed to send OTP email to %s: %s", to_email, exc)
+            current_app.logger.error("Failed to send OTP email: %s", exc)
             return False

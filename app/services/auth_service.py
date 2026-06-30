@@ -49,6 +49,7 @@ class AuthService:
 
     @staticmethod
     def register_user(email, password, first_name, last_name, role='whistleblower', acting_user=None):
+        email = email.lower().strip()
         if not AuthService.validate_email(email):
             return None, "Invalid email. Must use an @singaporetech.edu.sg or @sit.singaporetech.edu.sg address."
 
@@ -102,19 +103,24 @@ class AuthService:
             return None
 
         if user:
-            if user.check_password(password) and user.is_active:
-                user.reset_failed_login()
+            if user.check_password(password):
+                if user.is_active:
+                    user.reset_failed_login()
+                    db.session.commit()
+                    crypto_service.log_audit_action(
+                        action='user_login',
+                        acting_user=user, acting_role=user.role,
+                        details='User logged in',
+                        ip_address=ip_address,
+                    )
+                    return user
+                # Password correct but account is deactivated — do not touch
+                # the lockout counter; the account is already administratively
+                # disabled and incrementing serves no purpose.
+            else:
+                # Wrong password — increment the lockout counter.
+                user.increment_failed_login()
                 db.session.commit()
-                crypto_service.log_audit_action(
-                    action='user_login',
-                    acting_user=user, acting_role=user.role,
-                    details='User logged in',
-                    ip_address=ip_address,
-                )
-                return user
-            # Wrong password or inactive account — increment counter.
-            user.increment_failed_login()
-            db.session.commit()
         else:
             # User does not exist — perform dummy bcrypt check to equalise timing.
             User.dummy_check(password)
@@ -224,6 +230,7 @@ class AuthService:
         user.first_name = 'Deleted'
         user.last_name = 'User'
         user.is_active = False
+        user.invalidate_all_sessions()
         db.session.commit()
         crypto_service.log_audit_action(
             action='account_deletion',

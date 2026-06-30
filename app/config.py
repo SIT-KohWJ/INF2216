@@ -48,7 +48,7 @@ class Config:
     LOCKOUT_DURATION_MINUTES = 15
 
     PASSWORD_RESET_EXPIRY_MINUTES = 15   # minutes after OTP verification
-    OTP_EXPIRY_SECONDS = int(os.environ.get('OTP_EXPIRY_SECONDS', 30))
+    OTP_EXPIRY_SECONDS = int(os.environ.get('OTP_EXPIRY_SECONDS', 300))  # 5 minutes
     OTP_MAX_ATTEMPTS = int(os.environ.get('OTP_MAX_ATTEMPTS', 5))
 
     # bcrypt work factor — 12 is the OWASP-recommended minimum (≈250 ms/hash)

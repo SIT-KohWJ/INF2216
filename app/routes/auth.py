@@ -114,10 +114,6 @@ def forgot_password():
     if current_user.is_authenticated:
         return redirect(url_for('reports.dashboard'))
     form = PasswordResetRequestForm()
-    if request.method == 'POST':
-        print(f"[FORGOT] POST received, email field = {request.form.get('email')!r}", flush=True)
-        print(f"[FORGOT] form.validate_on_submit() = {form.validate_on_submit()}", flush=True)
-        print(f"[FORGOT] form.errors = {form.errors}", flush=True)
     if form.validate_on_submit():
         email = form.email.data.lower().strip()
         # OtpService creates an OTP record for every valid SIT email and only

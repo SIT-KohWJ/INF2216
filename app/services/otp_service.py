@@ -119,7 +119,11 @@ class OtpService:
 
         user = User.query.filter_by(email=email.lower(), is_active=True).first()
         if user:
-            EmailService.send_otp_email(email, otp, user.first_name)
+            sent = EmailService.send_otp_email(email, otp, user.first_name)
+            if not sent:
+                current_app.logger.error(
+                    "OTP email delivery failed; SMTP may be misconfigured"
+                )
 
     @staticmethod
     def cleanup_expired() -> int:
