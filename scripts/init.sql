@@ -111,6 +111,28 @@ CREATE INDEX IF NOT EXISTS idx_notes_report_id       ON investigation_notes (rep
 CREATE INDEX IF NOT EXISTS idx_notes_investigator_id ON investigation_notes (investigator_id);
 
 -- ---------------------------------------------------------------------------
+-- investigation_plans
+-- one plan per report, linked to the assigned investigator who created/edited it
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS investigation_plans (
+    id                       VARCHAR(36)  PRIMARY KEY,
+    report_id                VARCHAR(36)  NOT NULL UNIQUE REFERENCES reports (id) ON DELETE CASCADE,
+    investigator_id          VARCHAR(36)  NOT NULL REFERENCES users (id),
+    investigator_full_name   VARCHAR(128) NOT NULL,
+    investigator_job_title   VARCHAR(128) NOT NULL,
+    investigator_staff_id    VARCHAR(64)  NOT NULL,
+    planning_date            DATE         NOT NULL,
+    case_overview            TEXT         NOT NULL,
+    incident_when            TIMESTAMP    NOT NULL,
+    incident_where           VARCHAR(255) NOT NULL,
+    created_at               TIMESTAMP    NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_investigation_plans_report_id
+    ON investigation_plans (report_id);
+CREATE INDEX IF NOT EXISTS idx_investigation_plans_investigator_id
+    ON investigation_plans (investigator_id);
+
+-- ---------------------------------------------------------------------------
 -- password_reset_tokens
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -195,3 +217,35 @@ CREATE TRIGGER trg_users_updated_at   BEFORE UPDATE ON users   FOR EACH ROW EXEC
 
 DROP TRIGGER IF EXISTS trg_reports_updated_at ON reports;
 CREATE TRIGGER trg_reports_updated_at BEFORE UPDATE ON reports FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ============================================================================
+-- DEMO / SEED ACCOUNTS  (local dev + integration testing)
+--
+-- Runs as part of this file on the FIRST boot of an empty volume. Because the
+-- whole schema uses CREATE TABLE IF NOT EXISTS and this block is idempotent
+-- (ON CONFLICT (email) ...), the file is also safe to re-run by hand against a
+-- live container:
+--   docker compose exec -T db psql -U sitinform_user -d sitinform_db < scripts/init.sql
+--
+-- Passwords are bcrypt-hashed INSIDE Postgres via pgcrypto's crypt()/gen_salt.
+-- The resulting $2a$ hashes verify against the Python `bcrypt` library the app
+-- uses. id values are generated here as uuid4-style strings to match the ORM.
+--
+-- NOTE: these are throwaway demo credentials. Keep this block OUT of any real
+-- production database (FR-SA5 / self-privilege-escalation concerns).
+-- ============================================================================
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
+  (gen_random_uuid()::text, 'whistleblower1@sit.singaporetech.edu.sg', crypt('Password123!', gen_salt('bf', 12)), 'Whistleblower', 'One',  'whistleblower'),
+  (gen_random_uuid()::text, 'whistleblower2@sit.singaporetech.edu.sg', crypt('Password123!', gen_salt('bf', 12)), 'Whistleblower', 'Two',  'whistleblower'),
+  (gen_random_uuid()::text, 'investigator1@sit.singaporetech.edu.sg',  crypt('Password123!', gen_salt('bf', 12)), 'Investigator',  'One',  'investigator'),
+  (gen_random_uuid()::text, 'admin@sit.singaporetech.edu.sg',          crypt('Admin123!',    gen_salt('bf', 12)), 'Report',        'Admin','admin'),
+  (gen_random_uuid()::text, 'sysadmin@sit.singaporetech.edu.sg',       crypt('Sysadmin123!', gen_salt('bf', 12)), 'System',        'Admin','system_admin')
+ON CONFLICT (email) DO UPDATE
+  SET password_hash = EXCLUDED.password_hash,
+      role          = EXCLUDED.role,
+      first_name    = EXCLUDED.first_name,
+      last_name     = EXCLUDED.last_name,
+      is_active     = TRUE;

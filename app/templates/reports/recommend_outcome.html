@@ -1,19 +1,77 @@
 {% extends "base.html" %}
 {% block title %}Recommend Outcome - SITinform{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow">
-            <div class="card-header bg-warning text-dark"><h4 class="mb-0"><i class="fas fa-gavel"></i> Recommend Outcome</h4></div>
-            <div class="card-body">
-                <p>Report: <code>{{ report.reference_number }}</code> - {{ report.display_title if report.display_title is defined else report.title }}</p>
-                <form method="POST">
+<div class="note-page">
+    <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="note-page__back-link">
+        <i class="fas fa-arrow-left"></i>
+        <span>Back to Report</span>
+    </a>
+
+    <div class="note-page__layout">
+        <aside class="note-page__sidebar">
+            <section class="note-page__report-card">
+                <div class="note-page__report-card-title">
+                    <span class="note-page__report-card-icon"><i class="fas fa-file-alt"></i></span>
+                    <span>Report Information</span>
+                </div>
+
+                <div class="note-page__report-item">
+                    <div class="note-page__report-label">Reference</div>
+                    <div class="note-page__report-reference">{{ report.reference_number }}</div>
+                </div>
+
+                <div class="note-page__report-item">
+                    <div class="note-page__report-label">Title</div>
+                    <div class="note-page__report-value">{{ report.title }}</div>
+                </div>
+
+                <div class="note-page__report-item">
+                    <div class="note-page__report-label">Status</div>
+                    <span class="note-page__status-pill {% if report.status == 'Closed' %}note-page__status-pill--closed{% elif report.status == 'Under Review' %}note-page__status-pill--review{% elif report.status == 'Investigating' %}note-page__status-pill--investigating{% elif report.status == 'Planning' %}note-page__status-pill--planning{% else %}note-page__status-pill--open{% endif %}">
+                        {{ report.status }}
+                    </span>
+                </div>
+            </section>
+        </aside>
+
+        <div class="note-page__main">
+            <section class="note-page__hero">
+                <div class="note-page__hero-icon note-page__hero-icon--amber">
+                    <i class="fas fa-gavel"></i>
+                </div>
+                <div>
+                    <h1 class="note-page__title">Recommend Outcome</h1>
+                    <p class="note-page__subtitle">Recommend an appropriate outcome based on the investigation findings.</p>
+                </div>
+            </section>
+
+            <section class="note-page__panel">
+                <form method="POST" class="note-form">
                     {{ form.hidden_tag() }}
-                    <div class="mb-3">{{ form.outcome.label(class="form-label") }} {{ form.outcome(class="form-select") }}</div>
-                    <div class="mb-3">{{ form.outcome_details.label(class="form-label") }} {{ form.outcome_details(class="form-control", rows=4) }}</div>
-                    <div class="d-grid">{{ form.submit(class="btn btn-warning") }}</div>
+
+                    <div class="note-form__field">
+                        <label for="{{ form.outcome.id }}" class="note-form__label">
+                            <span>Outcome</span>
+                            <span class="note-form__required">*</span>
+                        </label>
+                        {{ form.outcome(class="form-select note-form__select") }}
+                    </div>
+
+                    <div class="note-form__field">
+                        <label for="{{ form.outcome_details.id }}" class="note-form__label">
+                            <span>Details</span>
+                            <span class="note-form__required">*</span>
+                        </label>
+                        {{ form.outcome_details(class="form-control note-form__textarea", rows=5, placeholder="Provide details about the recommended outcome...") }}
+                        <div class="note-form__help">Include the rationale and any supporting information for the recommended outcome.</div>
+                    </div>
+
+                    <div class="note-form__footer">
+                        <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="note-form__cancel-btn">Cancel</a>
+                        {{ form.submit(class="btn note-form__submit-btn note-form__submit-btn--amber") }}
+                    </div>
                 </form>
-            </div>
+            </section>
         </div>
     </div>
 </div>

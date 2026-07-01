@@ -1,6 +1,372 @@
 {% extends "base.html" %}
 {% block title %}Report {{ report.reference_number }} - SITinform{% endblock %}
 {% block content %}
+{% if current_user.role == 'whistleblower' %}
+<div class="wb-report-view">
+    <a href="{{ url_for('reports.dashboard') }}" class="wb-report-view__back-link">
+        <i class="fas fa-arrow-left"></i>
+        <span>Back to My Reports</span>
+    </a>
+
+    <section class="wb-report-view__hero">
+        <div class="wb-report-view__hero-icon">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <div class="wb-report-view__hero-content">
+            <div class="wb-report-view__eyebrow">Report Reference</div>
+            <div class="wb-report-view__reference-row">
+                <h1 class="wb-report-view__reference">{{ report.reference_number }}</h1>
+                <button type="button" class="wb-report-view__copy-btn" aria-label="Copy report reference" data-reference="{{ report.reference_number }}" onclick="if (navigator.clipboard) { navigator.clipboard.writeText(this.dataset.reference); }">
+                    <i class="far fa-copy"></i>
+                </button>
+            </div>
+            <div class="wb-status-pill {% if report.status == 'Closed' %}wb-status-pill--closed{% elif report.status == 'Under Review' %}wb-status-pill--review{% elif report.status == 'Investigating' %}wb-status-pill--investigating{% elif report.status == 'Planning' %}wb-status-pill--planning{% else %}wb-status-pill--open{% endif %}">
+                <span class="wb-status-pill__dot"></span>
+                {{ report.status }}
+            </div>
+        </div>
+    </section>
+
+    <section class="wb-report-view__meta-card">
+        <div class="wb-report-view__meta-item">
+            <div class="wb-report-view__meta-icon"><i class="fas fa-folder"></i></div>
+            <div>
+                <div class="wb-report-view__meta-label">Category</div>
+                <div class="wb-report-view__meta-value">{{ get_category_display_name(report.category) }}</div>
+            </div>
+        </div>
+        <div class="wb-report-view__meta-item">
+            <div class="wb-report-view__meta-icon"><i class="fas fa-calendar-alt"></i></div>
+            <div>
+                <div class="wb-report-view__meta-label">Submitted</div>
+                <div class="wb-report-view__meta-value">{{ report.created_at.strftime('%d %b %Y, %-I:%M %p') if report.created_at else '' }}</div>
+            </div>
+        </div>
+        <div class="wb-report-view__meta-item">
+            <div class="wb-report-view__meta-icon"><i class="fas fa-user-shield"></i></div>
+            <div>
+                <div class="wb-report-view__meta-label">Submitted Anonymously</div>
+                <div class="wb-report-view__meta-value">{% if report.submitter_hash %}Yes{% else %}No{% endif %}</div>
+            </div>
+        </div>
+    </section>
+
+    <div class="wb-report-view__grid">
+        <div class="wb-report-view__main">
+            <section class="wb-report-view__panel">
+                <div class="wb-report-view__panel-header">
+                    <div class="wb-report-view__panel-title">
+                        <span class="wb-report-view__panel-title-icon"><i class="fas fa-file-alt"></i></span>
+                        <span>Report Details</span>
+                    </div>
+                </div>
+                <div class="wb-report-view__detail-block">
+                    <div class="wb-report-view__detail-label">Title</div>
+                    <h2 class="wb-report-view__detail-title">{{ report.title }}</h2>
+                </div>
+                <div class="wb-report-view__detail-block">
+                    <div class="wb-report-view__detail-label">Description</div>
+                    <p class="wb-report-view__detail-copy mb-0">{{ decrypted_data.description if decrypted_data else report.description }}</p>
+                </div>
+            </section>
+
+            <section class="wb-report-view__panel">
+                <div class="wb-report-view__panel-header">
+                    <div class="wb-report-view__panel-title">
+                        <span class="wb-report-view__panel-title-icon"><i class="fas fa-sticky-note"></i></span>
+                        <span>Investigation Notes</span>
+                    </div>
+                </div>
+                {% if notes %}
+                <div class="wb-report-view__notes">
+                    {% for note in notes %}
+                    <div class="wb-report-view__note-item">
+                        <div class="wb-report-view__note-icon"><i class="fas fa-align-left"></i></div>
+                        <div class="wb-report-view__note-content">
+                            <div class="wb-report-view__note-date">{{ note.created_at.strftime('%d %b %Y, %-I:%M %p') if note.created_at else '' }}</div>
+                            <p class="wb-report-view__note-copy mb-0">{{ note.note }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="wb-report-view__empty-copy">No investigation notes have been shared for this report yet.</div>
+                {% endif %}
+            </section>
+
+            {% if evidence %}
+            <section class="wb-report-view__panel">
+                <div class="wb-report-view__panel-header">
+                    <div class="wb-report-view__panel-title">
+                        <span class="wb-report-view__panel-title-icon"><i class="fas fa-paperclip"></i></span>
+                        <span>Evidence</span>
+                    </div>
+                </div>
+                <div class="wb-report-view__evidence-list">
+                    {% for e in evidence %}
+                    <div class="wb-report-view__evidence-item">
+                        <div class="wb-report-view__evidence-meta">
+                            <div class="wb-report-view__evidence-name">{{ e.original_filename }}</div>
+                            <div class="wb-report-view__evidence-size">{{ format_bytes(e.file_size) }}</div>
+                        </div>
+                        <a href="{{ url_for('reports.download_evidence', evidence_id=e.id) }}" class="btn wb-dashboard__action-btn">
+                            <i class="fas fa-download"></i>
+                            <span>Download</span>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+        </div>
+
+        <div class="wb-report-view__side">
+            {% if history %}
+            <section class="wb-report-view__panel">
+                <div class="wb-report-view__panel-header">
+                    <div class="wb-report-view__panel-title">
+                        <span class="wb-report-view__panel-title-icon"><i class="fas fa-history"></i></span>
+                        <span>Status Timeline</span>
+                    </div>
+                </div>
+                <div class="status-timeline status-timeline--report-view">
+                    {% for h in history %}
+                    {% set is_current_step = loop.last and report.status != 'Closed' %}
+                    <div class="status-timeline__item {% if is_current_step %}status-timeline__item--current{% else %}status-timeline__item--completed{% endif %}">
+                        <div class="status-timeline__marker">{{ loop.index }}</div>
+                        <div class="status-timeline__content">
+                            <div class="wb-report-view__timeline-title">{{ h.old_status }} → {{ h.new_status }}</div>
+                            <span class="status-timeline__badge {% if is_current_step %}status-timeline__badge--current{% else %}status-timeline__badge--completed{% endif %}">
+                                {% if is_current_step %}Current{% else %}Completed{% endif %}
+                            </span>
+                            <div class="status-timeline__date">{{ format_datetime(h.changed_at) }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+        </div>
+    </div>
+
+    <section class="wb-dashboard__security">
+        <div class="wb-dashboard__security-icon">
+            <i class="fas fa-lock"></i>
+        </div>
+        <div class="wb-dashboard__security-copy">
+            <h2>Your identity is protected</h2>
+            <p>All submissions are encrypted and handled confidentially.</p>
+        </div>
+        <div class="wb-dashboard__security-ghost">
+            <i class="fas fa-shield-alt"></i>
+        </div>
+    </section>
+</div>
+{% elif current_user.role == 'investigator' %}
+<div class="inv-report-view">
+    <a href="{{ url_for('reports.investigator_dashboard') }}" class="inv-report-view__back-link">
+        <i class="fas fa-arrow-left"></i>
+        <span>Back to Investigations</span>
+    </a>
+
+    <section class="inv-report-view__hero">
+        <div class="inv-report-view__hero-copy">
+            <div class="inv-report-view__hero-icon">
+                <i class="fas fa-file-alt"></i>
+            </div>
+            <div class="inv-report-view__hero-content">
+                <h1 class="inv-report-view__title">Report {{ report.reference_number }}</h1>
+                <span class="inv-report-view__status-pill {% if report.status == 'Closed' %}inv-report-view__status-pill--closed{% elif report.status == 'Under Review' %}inv-report-view__status-pill--review{% elif report.status == 'Investigating' %}inv-report-view__status-pill--investigating{% elif report.status == 'Planning' %}inv-report-view__status-pill--planning{% else %}inv-report-view__status-pill--open{% endif %}">
+                    <i class="fas {% if report.status == 'Investigating' %}fa-search{% elif report.status == 'Closed' %}fa-check-circle{% elif report.status == 'Under Review' %}fa-balance-scale{% else %}fa-circle{% endif %}"></i>
+                    <span>{{ report.status }}</span>
+                </span>
+            </div>
+        </div>
+    </section>
+
+    <div class="inv-report-view__grid">
+        <section class="inv-report-view__panel">
+            <div class="inv-report-view__panel-header">
+                <div class="inv-report-view__panel-title">
+                    <span class="inv-report-view__panel-icon"><i class="fas fa-file-alt"></i></span>
+                    <span>Report Details</span>
+                </div>
+            </div>
+
+            <h2 class="inv-report-view__report-title">{{ report.title }}</h2>
+
+            <div class="inv-report-view__meta-row">
+                <div class="inv-report-view__meta-item">
+                    <i class="fas fa-folder"></i>
+                    <span class="inv-report-view__meta-label">Category:</span>
+                    <span class="inv-report-view__meta-value">{{ get_category_display_name(report.category) }}</span>
+                </div>
+                <div class="inv-report-view__meta-item">
+                    <i class="fas fa-users"></i>
+                    <span class="inv-report-view__meta-label">Severity:</span>
+                    <span class="inv-report-view__severity-pill inv-report-view__severity-pill--{% if report.severity %}{{ report.severity|lower }}{% else %}low{% endif %}">{{ report.severity|capitalize }}</span>
+                </div>
+                <div class="inv-report-view__meta-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span class="inv-report-view__meta-label">Submitted:</span>
+                    <span class="inv-report-view__meta-value">{{ format_datetime(report.created_at) }}</span>
+                </div>
+            </div>
+
+            <div class="inv-report-view__description-card">
+                <div class="inv-report-view__description-title">
+                    <span class="inv-report-view__description-icon"><i class="fas fa-comment-alt"></i></span>
+                    <span>Description</span>
+                </div>
+                <p class="inv-report-view__description-copy mb-0">{{ decrypted_data.description if decrypted_data else report.description }}</p>
+            </div>
+        </section>
+
+        <section class="inv-report-view__panel inv-report-view__panel--actions">
+            <div class="inv-report-view__panel-header">
+                <div class="inv-report-view__panel-title">
+                    <span class="inv-report-view__panel-icon"><i class="fas fa-bolt"></i></span>
+                    <span>Actions</span>
+                </div>
+            </div>
+
+            <div class="inv-report-view__actions">
+                <a href="{{ url_for('reports.investigation_plan', report_id=report.id) }}" class="inv-report-view__action-btn inv-report-view__action-btn--neutral">
+                    <i class="fas fa-file-signature"></i>
+                    <span>{% if report.investigation_plan %}View / Edit Investigation Plan{% else %}Create Investigation Plan{% endif %}</span>
+                </a>
+
+                {% if can_manage_investigation_actions %}
+                <a href="{{ url_for('reports.add_investigation_note', report_id=report.id) }}" class="inv-report-view__action-btn inv-report-view__action-btn--blue">
+                    <i class="fas fa-comment-alt"></i>
+                    <span>Add Note</span>
+                </a>
+                <a href="{{ url_for('reports.recommend_outcome', report_id=report.id) }}" class="inv-report-view__action-btn inv-report-view__action-btn--amber">
+                    <i class="fas fa-gavel"></i>
+                    <span>Recommend Outcome</span>
+                </a>
+                {% else %}
+                <button type="button" class="inv-report-view__action-btn inv-report-view__action-btn--blue" disabled>
+                    <i class="fas fa-comment-alt"></i>
+                    <span>Add Note</span>
+                </button>
+                <button type="button" class="inv-report-view__action-btn inv-report-view__action-btn--amber" disabled>
+                    <i class="fas fa-gavel"></i>
+                    <span>Recommend Outcome</span>
+                </button>
+                {% endif %}
+
+                {% if can_close_report %}
+                <form method="POST" action="{{ url_for('reports.close_report', report_id=report.id) }}" class="inv-report-view__action-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="inv-report-view__action-btn inv-report-view__action-btn--green" onclick="return confirm('Close this report?')">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Close Report</span>
+                    </button>
+                </form>
+                {% else %}
+                <button type="button" class="inv-report-view__action-btn inv-report-view__action-btn--green" disabled>
+                    <i class="fas fa-check-circle"></i>
+                    <span>Close Report</span>
+                </button>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="inv-report-view__panel">
+            <div class="inv-report-view__panel-header">
+                <div class="inv-report-view__panel-title">
+                    <span class="inv-report-view__panel-icon"><i class="fas fa-comment-alt"></i></span>
+                    <span>Investigation Notes</span>
+                </div>
+                {% if can_manage_investigation_actions %}
+                <a href="{{ url_for('reports.add_investigation_note', report_id=report.id) }}" class="inv-report-view__header-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>Add Note</span>
+                </a>
+                {% else %}
+                <button type="button" class="inv-report-view__header-btn" disabled>
+                    <i class="fas fa-plus"></i>
+                    <span>Add Note</span>
+                </button>
+                {% endif %}
+            </div>
+
+            {% if notes %}
+            <div class="inv-report-view__notes">
+                {% for note in notes %}
+                <div class="inv-report-view__note-item">
+                    <div class="inv-report-view__note-icon"><i class="fas fa-align-left"></i></div>
+                    <div class="inv-report-view__note-content">
+                        <div class="inv-report-view__note-date">{{ format_datetime(note.created_at) }}</div>
+                        <p class="inv-report-view__note-copy mb-0">{{ note.note }}</p>
+                        <div class="inv-report-view__note-author">{{ note.investigator.full_name if note.investigator else '' }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="inv-report-view__empty-copy">No investigation notes have been added yet.</div>
+            {% endif %}
+        </section>
+
+        <section class="inv-report-view__panel">
+            <div class="inv-report-view__panel-header">
+                <div class="inv-report-view__panel-title">
+                    <span class="inv-report-view__panel-icon"><i class="fas fa-history"></i></span>
+                    <span>Status Timeline</span>
+                </div>
+            </div>
+
+            {% if history %}
+            <div class="status-timeline status-timeline--investigator-report">
+                {% for h in history %}
+                {% set is_current_step = loop.last and report.status != 'Closed' %}
+                <div class="status-timeline__item {% if is_current_step %}status-timeline__item--current{% else %}status-timeline__item--completed{% endif %}">
+                    <div class="status-timeline__marker">{{ loop.index }}</div>
+                    <div class="status-timeline__content">
+                        <div class="inv-report-view__timeline-title">{{ h.old_status }} → {{ h.new_status }}</div>
+                        <span class="status-timeline__badge {% if is_current_step %}status-timeline__badge--current{% else %}status-timeline__badge--completed{% endif %}">
+                            {% if is_current_step %}Current{% else %}Completed{% endif %}
+                        </span>
+                        <div class="status-timeline__date">{{ format_datetime(h.changed_at) }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="inv-report-view__empty-copy">No status updates available.</div>
+            {% endif %}
+        </section>
+
+        {% if evidence %}
+        <section class="inv-report-view__panel inv-report-view__panel--full">
+            <div class="inv-report-view__panel-header">
+                <div class="inv-report-view__panel-title">
+                    <span class="inv-report-view__panel-icon"><i class="fas fa-paperclip"></i></span>
+                    <span>Evidence</span>
+                </div>
+            </div>
+
+            <div class="inv-report-view__evidence-list">
+                {% for e in evidence %}
+                <div class="inv-report-view__evidence-item">
+                    <div class="inv-report-view__evidence-meta">
+                        <div class="inv-report-view__evidence-name">{{ e.original_filename }}</div>
+                        <div class="inv-report-view__evidence-size">{{ format_bytes(e.file_size) }}</div>
+                    </div>
+                    <a href="{{ url_for('reports.download_evidence', evidence_id=e.id) }}" class="inv-report-view__download-btn">
+                        <i class="fas fa-download"></i>
+                        <span>Download</span>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </div>
+</div>
+{% else %}
 <div class="row mb-4">
     <div class="col-12">
         <h2><i class="fas fa-file-alt"></i> Report {{ report.reference_number }}</h2>
@@ -53,12 +419,29 @@
         <div class="card mb-4">
             <div class="card-header"><h5 class="mb-0">Actions</h5></div>
             <div class="card-body">
+                {% if current_user.role == 'investigator' %}
+                <a href="{{ url_for('reports.investigation_plan', report_id=report.id) }}" class="btn btn-outline-secondary w-100 mb-2">
+                    <i class="fas fa-clipboard-list"></i>
+                    {% if report.investigation_plan %}View/Edit Investigation Plan{% else %}Create Investigation Plan{% endif %}
+                </a>
+                {% elif current_user.role == 'report_admin' and report.investigation_plan %}
+                <a href="{{ url_for('reports.investigation_plan', report_id=report.id) }}" class="btn btn-outline-secondary w-100 mb-2"><i class="fas fa-clipboard-list"></i> View Investigation Plan</a>
+                {% endif %}
+                {% if can_manage_investigation_actions %}
                 <a href="{{ url_for('reports.add_investigation_note', report_id=report.id) }}" class="btn btn-outline-primary w-100 mb-2"><i class="fas fa-sticky-note"></i> Add Note</a>
                 <a href="{{ url_for('reports.recommend_outcome', report_id=report.id) }}" class="btn btn-outline-warning w-100 mb-2"><i class="fas fa-gavel"></i> Recommend Outcome</a>
+                {% else %}
+                <button type="button" class="btn btn-outline-primary w-100 mb-2" disabled><i class="fas fa-sticky-note"></i> Add Note</button>
+                <button type="button" class="btn btn-outline-warning w-100 mb-2" disabled><i class="fas fa-gavel"></i> Recommend Outcome</button>
+                {% endif %}
+                {% if can_close_report %}
                 <form method="POST" action="{{ url_for('reports.close_report', report_id=report.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-outline-success w-100" onclick="return confirm('Close this report?')"><i class="fas fa-check-circle"></i> Close Report</button>
                 </form>
+                {% else %}
+                <button type="button" class="btn btn-outline-success w-100" disabled><i class="fas fa-check-circle"></i> Close Report</button>
+                {% endif %}
             </div>
         </div>
         {% endif %}
@@ -83,15 +466,25 @@
         <div class="card">
             <div class="card-header"><h5 class="mb-0"><i class="fas fa-history"></i> Status History</h5></div>
             <div class="card-body">
+                <div class="status-timeline">
                 {% for h in history %}
-                <div class="border-bottom pb-2 mb-2">
-                    <small class="text-muted">{{ format_datetime(h.changed_at) }}</small>
-                    <p class="mb-0">{{ h.old_status }} → {{ h.new_status }}</p>
+                {% set is_current_step = loop.last and report.status != 'Closed' %}
+                <div class="status-timeline__item {% if is_current_step %}status-timeline__item--current{% else %}status-timeline__item--completed{% endif %}">
+                    <div class="status-timeline__marker">{{ loop.index }}</div>
+                    <div class="status-timeline__content">
+                        <div class="status-timeline__title">{{ h.old_status }} → {{ h.new_status }}</div>
+                        <span class="status-timeline__badge {% if is_current_step %}status-timeline__badge--current{% else %}status-timeline__badge--completed{% endif %}">
+                            {% if is_current_step %}Current{% else %}Completed{% endif %}
+                        </span>
+                        <div class="status-timeline__date">{{ format_datetime(h.changed_at) }}</div>
+                    </div>
                 </div>
                 {% endfor %}
+                </div>
             </div>
         </div>
         {% endif %}
     </div>
 </div>
+{% endif %}
 {% endblock %}

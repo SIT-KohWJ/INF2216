@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Verify OTP - SITinform{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-shield-alt"></i> Verify Your Identity</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    A 6-digit one-time password was sent to
+                    <strong>{{ email }}</strong>.
+                    It is valid for <strong>5 minutes</strong> and can only be used once.
+                </p>
+                <p class="text-muted small mb-4">
+                    Wrong address?
+                    <a href="{{ url_for('auth.forgot_password') }}">Go back and try again.</a>
+                </p>
+                <form method="POST" autocomplete="off">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.otp.label(class="form-label") }}
+                        {{ form.otp(class="form-control form-control-lg text-center", placeholder="000000",
+                                    maxlength="6", inputmode="numeric", pattern="[0-9]{6}",
+                                    autofocus=true) }}
+                        {% for error in form.otp.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+                <div class="mt-3 text-center">
+                    <a href="{{ url_for('auth.forgot_password') }}" class="text-muted small">
+                        Didn't receive it? Request a new OTP
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
