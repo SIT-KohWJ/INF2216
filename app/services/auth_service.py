@@ -297,12 +297,12 @@ class AuthService:
         user.is_active = True
         db.session.commit()
         crypto_service.log_audit_action(
-            action='account_deletion',
-            acting_user=None, acting_role=user_role,
+            action='user_reactivation',
+            acting_user=acting_user, acting_role=acting_user.role,
             target_type='user', target_id=user.id,
-            details='Account deleted; reports and audit logs preserved for integrity',
+            details='Account deletion request denied; account reactivated',
         )
-        return True, "Account deleted successfully. Your reports and audit records have been preserved for integrity."
+        return True, "Account deletion request denied. The account has been reactivated."
 
     @staticmethod
     def get_users_by_role(role):

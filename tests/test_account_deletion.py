@@ -95,6 +95,7 @@ def test_approve_severs_report_link_but_preserves_report(app):
     admin = create_user(email="sys@singaporetech.edu.sg", role="system_admin")
     report = create_report(user)
     report_id = report.id
+    user_id = user.id
     original_hash = report.submitter_hash
 
     AuthService.request_account_deletion(user)
@@ -105,7 +106,11 @@ def test_approve_severs_report_link_but_preserves_report(app):
     assert refreshed is not None
     assert refreshed.title == "Report title"
     assert refreshed.user_id is None
-    assert refreshed.submitter_hash == original_hash
+    # The report is preserved, but its link to the deleted user is severed: the
+    # submitter_hash is randomised so it can no longer be re-correlated to the
+    # original user_id (was HMAC(user_id)).
+    assert refreshed.submitter_hash != original_hash
+    assert refreshed.submitter_hash != crypto_service.generate_user_hash(user_id)
 
 
 def test_approve_scrubs_personal_data_and_clears_flag(app):
