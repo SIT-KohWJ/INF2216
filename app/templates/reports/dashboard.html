@@ -1,71 +1,140 @@
 {% extends "base.html" %}
 {% block title %}Dashboard - SITinform{% endblock %}
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h2><i class="fas fa-tachometer-alt"></i> Whistleblower Dashboard</h2>
-        <p class="text-muted">Welcome, {{ current_user.full_name }}!</p>
-    </div>
-</div>
-<div class="row mb-4">
-    <div class="col-md-4 mb-3">
-        <div class="card text-white bg-primary">
-            <div class="card-body">
-                <h5 class="card-title"><i class="fas fa-file-alt"></i> My Reports</h5>
-                <p class="card-text fs-3">{{ reports|length }}</p>
-            </div>
+{% set total_reports = reports|length %}
+{% set closed_reports = reports|selectattr('status', 'equalto', 'Closed')|list|length %}
+{% set open_reports = total_reports - closed_reports %}
+
+<div class="wb-dashboard">
+    <section class="wb-dashboard__hero">
+        <div class="wb-dashboard__hero-icon">
+            <i class="fas fa-bullhorn"></i>
         </div>
-    </div>
-    <div class="col-md-4 mb-3">
-        <div class="card text-white bg-warning">
-            <div class="card-body">
-                <h5 class="card-title"><i class="fas fa-clock"></i> Pending</h5>
-                <p class="card-text fs-3">{{ reports|selectattr('status', 'equalto', 'Received')|list|length }}</p>
-            </div>
+        <div>
+            <h2 class="wb-dashboard__title">Whistleblower Dashboard</h2>
+            <p class="wb-dashboard__welcome">Welcome, <span>{{ current_user.full_name }}</span></p>
+            <p class="wb-dashboard__intro">Thank you for helping us maintain a safe and transparent environment.</p>
         </div>
-    </div>
-    <div class="col-md-4 mb-3">
-        <div class="card text-white bg-success">
-            <div class="card-body">
-                <h5 class="card-title"><i class="fas fa-check"></i> Resolved</h5>
-                <p class="card-text fs-3">{{ reports|selectattr('status', 'equalto', 'Resolved')|list|length }}</p>
+    </section>
+
+    <section class="wb-dashboard__stats">
+        <article class="wb-stat-card wb-stat-card--blue">
+            <div class="wb-stat-card__icon"><i class="fas fa-file-alt"></i></div>
+            <div class="wb-stat-card__content">
+                <h2 class="wb-stat-card__title">My Reports</h2>
+                <div class="wb-stat-card__value">{{ total_reports }}</div>
+                <p class="wb-stat-card__copy">Total submitted reports</p>
             </div>
+            <div class="wb-stat-card__ghost"><i class="far fa-file-alt"></i></div>
+        </article>
+
+        <article class="wb-stat-card wb-stat-card--amber">
+            <div class="wb-stat-card__icon"><i class="far fa-clock"></i></div>
+            <div class="wb-stat-card__content">
+                <h2 class="wb-stat-card__title">Open</h2>
+                <div class="wb-stat-card__value">{{ open_reports }}</div>
+                <p class="wb-stat-card__copy">Reports are in progress</p>
+            </div>
+            <div class="wb-stat-card__ghost"><i class="far fa-folder-open"></i></div>
+        </article>
+
+        <article class="wb-stat-card wb-stat-card--green">
+            <div class="wb-stat-card__icon"><i class="fas fa-check"></i></div>
+            <div class="wb-stat-card__content">
+                <h2 class="wb-stat-card__title">Closed</h2>
+                <div class="wb-stat-card__value">{{ closed_reports }}</div>
+                <p class="wb-stat-card__copy">Reports have been closed</p>
+            </div>
+            <div class="wb-stat-card__ghost"><i class="fas fa-shield-alt"></i></div>
+        </article>
+    </section>
+
+    <section class="wb-dashboard__panel">
+        <div class="wb-dashboard__panel-header">
+            <div class="wb-dashboard__panel-title">
+                <i class="fas fa-list-ul"></i>
+                <span>My Reports</span>
+            </div>
+            <a href="{{ url_for('reports.submit_report') }}" class="btn wb-dashboard__new-report-btn">
+                <i class="fas fa-plus"></i>
+                <span>New Report</span>
+            </a>
         </div>
-    </div>
-</div>
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-list"></i> My Reports</h5>
-                <a href="{{ url_for('reports.submit_report') }}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> New Report</a>
-            </div>
-            <div class="card-body">
-                {% if reports %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr><th>Reference</th><th>Title</th><th>Category</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
-                        </thead>
-                        <tbody>
-                            {% for report in reports %}
-                            <tr>
-                                <td><code>{{ report.reference_number }}</code></td>
-                                <td>{{ report.title }}</td>
-                                <td>{{ get_category_display_name(report.category) }}</td>
-                                <td><span class="badge {{ get_report_status_css(report.status) }}">{{ report.status }}</span></td>
-                                <td>{{ format_date(report.created_at) }}</td>
-                                <td><a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> View</a></td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="alert alert-info"><i class="fas fa-info-circle"></i> No reports yet. <a href="{{ url_for('reports.submit_report') }}">Submit your first report</a></div>
-                {% endif %}
-            </div>
+
+        {% if reports %}
+        <div class="wb-dashboard__table-wrap">
+            <table class="table wb-dashboard__table">
+                <thead>
+                    <tr>
+                        <th>Reference</th>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports %}
+                    <tr>
+                        <td>
+                            <div class="wb-dashboard__reference">{{ report.reference_number }}</div>
+                        </td>
+                        <td>{{ report.title }}</td>
+                        <td>{{ get_category_display_name(report.category) }}</td>
+                        <td>
+                            <span class="wb-status-pill {% if report.status == 'Closed' %}wb-status-pill--closed{% elif report.status == 'Under Review' %}wb-status-pill--review{% elif report.status == 'Investigating' %}wb-status-pill--investigating{% elif report.status == 'Planning' %}wb-status-pill--planning{% else %}wb-status-pill--open{% endif %}">
+                                <span class="wb-status-pill__dot"></span>
+                                {{ report.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="wb-dashboard__submitted-date">{{ report.created_at.strftime('%d %b %Y') }}</div>
+                            <div class="wb-dashboard__submitted-time">{{ report.created_at.strftime('%I:%M %p') }}</div>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="btn wb-dashboard__action-btn">
+                                <i class="fas fa-eye"></i>
+                                <span>View Details</span>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-    </div>
+        {% else %}
+        <div class="wb-dashboard__empty">
+            <div class="wb-dashboard__empty-icon"><i class="fas fa-file-alt"></i></div>
+            <h2 class="wb-dashboard__empty-title">No reports yet</h2>
+            <p class="wb-dashboard__empty-copy">Start your first secure submission when you are ready.</p>
+            <a href="{{ url_for('reports.submit_report') }}" class="btn wb-dashboard__new-report-btn">
+                <i class="fas fa-plus"></i>
+                <span>Submit Your First Report</span>
+            </a>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="wb-dashboard__security">
+        <div class="wb-dashboard__security-icon">
+            <i class="fas fa-lock"></i>
+        </div>
+        <div class="wb-dashboard__security-copy">
+            <h2>Your identity is protected</h2>
+            <p>All submissions are encrypted and handled confidentially.</p>
+        </div>
+        <div class="wb-dashboard__security-ghost">
+            <i class="fas fa-shield-alt"></i>
+        </div>
+    </section>
+
+    <footer class="wb-dashboard__footer">
+        <div class="wb-dashboard__footer-brand">
+            <i class="fas fa-shield-alt"></i>
+            <span>SITinform</span>
+        </div>
+        <p>Your voice matters. Reports are confidential.</p>
+    </footer>
 </div>
 {% endblock %}

@@ -30,6 +30,10 @@ def register():
 @limiter.limit("10 per minute")
 def login():
     if current_user.is_authenticated:
+        if current_user.role in ['system_admin', 'admin']:
+            return redirect(url_for('admin.dashboard'))
+        if current_user.role == 'investigator':
+            return redirect(url_for('reports.investigator_dashboard'))
         return redirect(url_for('reports.dashboard'))
     form = LoginForm()
     if form.validate_on_submit():

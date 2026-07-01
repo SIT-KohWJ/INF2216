@@ -51,6 +51,7 @@ class AuthService:
         "Invalid email or password" regardless of the exact failure reason.
         """
         email = email.lower().strip()
+
         user = User.query.filter_by(email=email).first()
         if user and user.is_locked():
             crypto_service.log_audit_action(action='login_failed_account_locked', acting_user=user, acting_role=user.role, details='Login attempt on locked account', ip_address=ip_address)
