@@ -34,6 +34,8 @@ class User(UserMixin, db.Model):
         self.password_hash = hashed.decode('utf-8')
 
     def check_password(self, password):
+        if not self.password_hash:
+            return False
         password_bytes = password.encode('utf-8')
         hashed_bytes = self.password_hash.encode('utf-8')
         return bcrypt.checkpw(password_bytes, hashed_bytes)
