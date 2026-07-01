@@ -47,13 +47,18 @@ class Config:
     MAX_FAILED_LOGIN_ATTEMPTS = 5
     LOCKOUT_DURATION_MINUTES = 15
 
-    PASSWORD_RESET_EXPIRY_MINUTES = 10
+    PASSWORD_RESET_EXPIRY_MINUTES = 15   # minutes after OTP verification
+    OTP_EXPIRY_SECONDS = int(os.environ.get('OTP_EXPIRY_SECONDS', 300))  # 5 minutes
+    OTP_MAX_ATTEMPTS = int(os.environ.get('OTP_MAX_ATTEMPTS', 5))
 
-    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.singaporetech.edu.sg')
+    # bcrypt work factor — 12 is the OWASP-recommended minimum (≈250 ms/hash)
+    BCRYPT_ROUNDS = int(os.environ.get('BCRYPT_ROUNDS', 12))
+
+    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp-relay.brevo.com')
     MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
     MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
-    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
-    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')   # Brevo login email
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')   # Brevo SMTP key (not account password)
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@sitinform.sit.singaporetech.edu.sg')
 
 

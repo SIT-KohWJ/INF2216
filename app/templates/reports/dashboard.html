@@ -80,7 +80,7 @@
                         <td>
                             <div class="wb-dashboard__reference">{{ report.reference_number }}</div>
                         </td>
-                        <td>{{ report.title }}</td>
+                        <td>{{ report.display_title if report.display_title is defined else report.title }}</td>
                         <td>{{ get_category_display_name(report.category) }}</td>
                         <td>
                             <span class="wb-status-pill {% if report.status == 'Closed' %}wb-status-pill--closed{% elif report.status == 'Under Review' %}wb-status-pill--review{% elif report.status == 'Investigating' %}wb-status-pill--investigating{% elif report.status == 'Planning' %}wb-status-pill--planning{% else %}wb-status-pill--open{% endif %}">

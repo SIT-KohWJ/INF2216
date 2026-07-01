@@ -1,22 +1,21 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_mail import Mail
+from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 
 db = SQLAlchemy()
 login_manager = LoginManager()
 limiter = Limiter(key_func=get_remote_address)
 csrf = CSRFProtect()
+mail = Mail()
 
 
 def create_app(config_name=None):
     app = Flask(__name__)
 
-    # When no explicit config is passed (e.g. gunicorn -> wsgi:app), pick it
-    # from FLASK_ENV so compose.prod.yaml (FLASK_ENV=production) gets the
-    # hardened ProductionConfig and local dev gets DevelopmentConfig.
     import os
     if config_name is None:
         config_name = os.getenv('FLASK_ENV', 'development')
@@ -28,6 +27,11 @@ def create_app(config_name=None):
     login_manager.init_app(app)
     limiter.init_app(app)
     csrf.init_app(app)
+    mail.init_app(app)
+
+    # Wire Flask-Mail into EmailService so OTP delivery works.
+    from app.services.email_service import EmailService
+    EmailService.init_app(mail)
 
     from app.services.crypto_service import init_crypto
     with app.app_context():
@@ -40,18 +44,21 @@ def create_app(config_name=None):
     app.jinja_env.globals['csrf_token'] = generate_csrf
 
     from app.routes.auth import auth_bp
+    from app.routes.otp import otp_bp
     from app.routes.reports import reports_bp
     from app.routes.admin import admin_bp
     from app.routes.api import api_bp
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(otp_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(api_bp)
 
     from app.utils.helpers import (
-        get_report_status_css, get_action_css, format_datetime, format_date,
-        get_role_display_name, get_category_display_name, truncate_text, format_bytes
+        format_bytes, format_date, format_datetime,
+        get_action_css, get_category_display_name, get_report_status_css,
+        get_role_display_name, truncate_text,
     )
     from app.services.crypto_service import crypto_service as _crypto_service
 
@@ -64,20 +71,42 @@ def create_app(config_name=None):
         get_category_display_name=get_category_display_name,
         truncate_text=truncate_text,
         format_bytes=format_bytes,
-        crypto_service=_crypto_service
+        crypto_service=_crypto_service,
     )
 
     @app.before_request
     def check_session_revoked():
-        from flask import session, redirect, url_for
+        from datetime import datetime as _dt
+        from flask import redirect, session, url_for
         from flask_login import current_user, logout_user
         from app.models import RevokedToken
-        if current_user.is_authenticated:
-            sid = session.get('_sid')
-            if sid and RevokedToken.is_token_revoked(sid):
-                logout_user()
-                session.clear()
-                return redirect(url_for('auth.login'))
+
+        if not current_user.is_authenticated:
+            return
+
+        # Gate 1 — explicit per-session revocation (logout, password change on
+        # this specific session).
+        sid = session.get('_sid')
+        if sid and RevokedToken.is_token_revoked(sid):
+            logout_user()
+            session.clear()
+            return redirect(url_for('auth.login'))
+
+        # Gate 2 — global session invalidation watermark (password reset or
+        # password change which bumps User.sessions_invalidated_at so that ALL
+        # concurrent sessions — including ones not caught by gate 1 — are
+        # expired).
+        invalidated_at = getattr(current_user, 'sessions_invalidated_at', None)
+        created_at_str = session.get('_session_created_at')
+        if invalidated_at and created_at_str:
+            try:
+                session_created = _dt.fromisoformat(created_at_str)
+                if invalidated_at > session_created:
+                    logout_user()
+                    session.clear()
+                    return redirect(url_for('auth.login'))
+            except (ValueError, TypeError):
+                pass
 
     @app.before_request
     def enforce_https():
@@ -103,18 +132,16 @@ def create_app(config_name=None):
 
     @app.errorhandler(429)
     def ratelimit_handler(e):
-        from flask import flash, redirect, request, url_for
-        flash('Too many requests. Please try again later.', 'warning')
-        return redirect(request.referrer or url_for('auth.login'))
+        from flask import flash, redirect, url_for
+        flash('Too many requests. Please slow down and try again later.', 'warning')
+        # Never redirect to request.referrer — if the rate-limited URL IS the
+        # referrer, that creates an infinite redirect loop.
+        return redirect(url_for('auth.login'))
 
     @app.get('/healthz')
     def healthz():
-        """Liveness probe used by nginx and the deploy smoke check."""
         return {'status': 'ok'}, 200
 
-    # On Postgres the schema is owned by scripts/init.sql (it runs once on first
-    # DB boot), so create_all() is a harmless no-op there — it only fills in
-    # missing tables, which is what we want for the SQLite dev fallback.
     with app.app_context():
         db.create_all()
         from app.services.report_service import ReportService

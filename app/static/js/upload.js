@@ -119,7 +119,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     input.addEventListener('change', function () {
         if (this.files.length) addFiles(this.files);
-        this.value = '';
     });
 
     if (form) {

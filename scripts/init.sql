@@ -25,25 +25,22 @@
 -- users
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
-    id                     VARCHAR(36)  PRIMARY KEY,
-    email                  VARCHAR(120) NOT NULL UNIQUE,
-    password_hash          VARCHAR(128) NOT NULL,           -- bcrypt hash only, never plaintext
-    first_name             VARCHAR(64)  NOT NULL,
-    last_name              VARCHAR(64)  NOT NULL,
-    role                   VARCHAR(20)  NOT NULL DEFAULT 'whistleblower',
-    is_active              BOOLEAN      NOT NULL DEFAULT TRUE,
-    created_at             TIMESTAMP    NOT NULL DEFAULT now(),
-    updated_at             TIMESTAMP    NOT NULL DEFAULT now(),
-    failed_login_attempts  INTEGER      NOT NULL DEFAULT 0,
-    locked_until           TIMESTAMP,
+    id                      VARCHAR(36)  PRIMARY KEY,
+    email                   VARCHAR(120) NOT NULL UNIQUE,
+    password_hash           VARCHAR(128) NOT NULL,           -- bcrypt hash only, never plaintext
+    first_name              VARCHAR(64)  NOT NULL,
+    last_name               VARCHAR(64)  NOT NULL,
+    role                    VARCHAR(20)  NOT NULL DEFAULT 'whistleblower',
+    is_active               BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at              TIMESTAMP    NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMP    NOT NULL DEFAULT now(),
+    failed_login_attempts   INTEGER      NOT NULL DEFAULT 0,
+    locked_until            TIMESTAMP,
+    -- Bumped on password change/reset to force-expire all active sessions.
+    sessions_invalidated_at TIMESTAMP,
     deletion_requested     BOOLEAN      NOT NULL DEFAULT FALSE,  -- FR-W4: whistleblower requested deletion, pending System Admin review
     deletion_requested_at  TIMESTAMP
 );
-
--- Idempotent column adds for existing databases (the CREATE TABLE above is a
--- no-op once the table exists, so new columns must be added explicitly).
-ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_requested    BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_requested_at TIMESTAMP;
 
 -- ---------------------------------------------------------------------------
 -- reports
@@ -153,6 +150,24 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 CREATE INDEX IF NOT EXISTS idx_prt_user_id ON password_reset_tokens (user_id);
 
 -- ---------------------------------------------------------------------------
+-- otp_tokens  (first gate in the password-reset defence-in-depth chain)
+--
+-- Only the SHA-256 hash of the OTP is stored so a DB breach cannot reveal
+-- live OTPs. The plaintext OTP is generated in memory and delivered by email
+-- only to the registered account holder; it is never logged or persisted.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS otp_tokens (
+    id         VARCHAR(36)  PRIMARY KEY,
+    email      VARCHAR(120) NOT NULL,
+    otp_hash   VARCHAR(64)  NOT NULL,      -- SHA-256 of the plaintext OTP
+    created_at TIMESTAMP    NOT NULL DEFAULT now(),
+    expires_at TIMESTAMP    NOT NULL,
+    verified   BOOLEAN      NOT NULL DEFAULT FALSE,
+    attempts   INTEGER      NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_otp_tokens_email ON otp_tokens (email);
+
+-- ---------------------------------------------------------------------------
 -- revoked_tokens  (logged-out / revoked JWTs)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS revoked_tokens (
@@ -248,8 +263,7 @@ INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
   (gen_random_uuid()::text, 'whistleblower1@sit.singaporetech.edu.sg', crypt('Password123!', gen_salt('bf', 12)), 'Whistleblower', 'One',  'whistleblower'),
   (gen_random_uuid()::text, 'whistleblower2@sit.singaporetech.edu.sg', crypt('Password123!', gen_salt('bf', 12)), 'Whistleblower', 'Two',  'whistleblower'),
   (gen_random_uuid()::text, 'investigator1@sit.singaporetech.edu.sg',  crypt('Password123!', gen_salt('bf', 12)), 'Investigator',  'One',  'investigator'),
-  (gen_random_uuid()::text, 'admin@sit.singaporetech.edu.sg',          crypt('Admin123!',    gen_salt('bf', 12)), 'Report',        'Adm
-  in','admin'),
+  (gen_random_uuid()::text, 'reportadmin@sit.singaporetech.edu.sg',    crypt('Admin123!',    gen_salt('bf', 12)), 'Report',        'Admin','report_admin'),
   (gen_random_uuid()::text, 'sysadmin@sit.singaporetech.edu.sg',       crypt('Sysadmin123!', gen_salt('bf', 12)), 'System',        'Admin','system_admin')
 ON CONFLICT (email) DO UPDATE
   SET password_hash = EXCLUDED.password_hash,

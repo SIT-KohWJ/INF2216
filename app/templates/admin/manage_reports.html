@@ -89,7 +89,7 @@
                         <td>
                             <span class="mr-ref">{{ report.reference_number }}</span>
                         </td>
-                        <td>{{ report.title }}</td>
+                        <td>{{ report.display_title if report.display_title is defined else report.title }}</td>
                         <td>{{ get_category_display_name(report.category) }}</td>
                         <td>
                             <span class="mr-pill mr-pill--severity-{% if report.severity %}{{ report.severity|lower }}{% else %}low{% endif %}">

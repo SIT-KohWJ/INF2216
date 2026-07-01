@@ -22,7 +22,7 @@
 
                 <div class="note-page__report-item">
                     <div class="note-page__report-label">Title</div>
-                    <div class="note-page__report-value">{{ report.title }}</div>
+                    <div class="note-page__report-value">{{ report.display_title if report.display_title is defined else report.title }}</div>
                 </div>
 
                 <div class="note-page__report-item">
