@@ -37,10 +37,10 @@ CREATE TABLE IF NOT EXISTS users (
     failed_login_attempts   INTEGER      NOT NULL DEFAULT 0,
     locked_until            TIMESTAMP,
     -- Bumped on password change/reset to force-expire all active sessions.
-    sessions_invalidated_at TIMESTAMP
+    sessions_invalidated_at TIMESTAMP,
+    deletion_requested     BOOLEAN      NOT NULL DEFAULT FALSE,  -- FR-W4: whistleblower requested deletion, pending System Admin review
+    deletion_requested_at  TIMESTAMP
 );
--- Idempotent migration for existing deployments (runs after CREATE TABLE IF NOT EXISTS no-ops).
-ALTER TABLE users ADD COLUMN IF NOT EXISTS sessions_invalidated_at TIMESTAMP;
 
 -- ---------------------------------------------------------------------------
 -- reports

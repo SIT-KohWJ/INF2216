@@ -24,6 +24,10 @@
                     {% elif current_user.role == 'system_admin' %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.dashboard') }}"><i class="fas fa-cog"></i> System Admin</a></li>
                     {% endif %}
+                    {% if current_user.role == 'whistleblower' %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+                    {% endif %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.account') }}"><i class="fas fa-user-circle"></i> Account</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                     {% else %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}">Login</a></li>

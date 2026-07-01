@@ -94,6 +94,61 @@
         {% endif %}
     </section>
 
+    {% if deletion_requests %}
+    <section class="mu-page__panel mu-page__panel--secondary">
+        <div class="mu-page__panel-header">
+            <div class="mu-page__panel-title">
+                <i class="fas fa-user-clock"></i>
+                <span>Pending Deletion Requests</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table mu-table mu-table--compact">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Requested</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in deletion_requests %}
+                    <tr>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            <span class="mu-pill mu-pill--role-{% if user.role == 'report_admin' %}report-admin{% elif user.role == 'system_admin' %}system-admin{% else %}{{ user.role|replace('_', '-') }}{% endif %}">
+                                <span>{{ get_role_display_name(user.role) }}</span>
+                            </span>
+                        </td>
+                        <td>{{ format_date(user.deletion_requested_at) if user.deletion_requested_at else 'N/A' }}</td>
+                        <td>
+                            <div class="mu-actions">
+                                <form method="POST" action="{{ url_for('admin.approve_deletion', user_id=user.id) }}" class="mu-actions__form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="mu-action-btn mu-action-btn--red" onclick="return confirm('Approve deletion? This permanently removes the profile and cannot be undone. Reports and audit logs are preserved.')">
+                                        <i class="fas fa-trash-alt"></i>
+                                        <span>Approve</span>
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin.deny_deletion', user_id=user.id) }}" class="mu-actions__form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="mu-action-btn mu-action-btn--green" onclick="return confirm('Deny this request and reactivate the account?')">
+                                        <i class="fas fa-undo"></i>
+                                        <span>Deny</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+
     {% if suspended_users %}
     <section class="mu-page__panel mu-page__panel--secondary">
         <div class="mu-page__panel-header">

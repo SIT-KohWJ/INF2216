@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, make_response, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app import db, limiter
@@ -51,20 +51,41 @@ def login():
         if user:
             # Regenerate session to prevent session-fixation attacks.
             session.clear()
-            login_user(user, remember=form.remember.data)
+            # "Remember Me" here only pre-fills the email next time; it does NOT
+            # keep the user logged in (no long-lived remember cookie), and the
+            # password is never stored anywhere.
+            login_user(user, remember=False)
             # _sid is the revocable session identifier; _session_created_at is
             # the watermark checked against User.sessions_invalidated_at.
             session['_sid'] = str(uuid.uuid4())
             session['_session_created_at'] = datetime.utcnow().isoformat()
 
             if user.role in ['system_admin', 'report_admin']:
-                return redirect(url_for('admin.dashboard'))
+                dest = url_for('admin.dashboard')
             elif user.role == 'investigator':
-                return redirect(url_for('reports.investigator_dashboard'))
+                dest = url_for('reports.investigator_dashboard')
             else:
-                return redirect(url_for('reports.dashboard'))
+                dest = url_for('reports.dashboard')
+            response = make_response(redirect(dest))
+            if form.remember.data:
+                # 30-day, HttpOnly cookie holding only the email address.
+                response.set_cookie(
+                    'remembered_email', form.email.data.lower().strip(),
+                    max_age=30 * 24 * 3600, httponly=True, samesite='Lax',
+                    secure=request.is_secure,
+                )
+            else:
+                response.delete_cookie('remembered_email')
+            return response
         else:
             flash('Invalid email or password.', 'danger')
+
+    # On GET, pre-fill the email (and tick the box) from the remembered cookie.
+    if request.method == 'GET':
+        remembered = request.cookies.get('remembered_email')
+        if remembered:
+            form.email.data = remembered
+            form.remember.data = True
     return render_template('auth/login.html', form=form)
 
 
@@ -157,20 +178,48 @@ def reset_password():
     return render_template('auth/reset_password.html', form=form)
 
 
+@auth_bp.route('/account')
+@login_required
+def account():
+    from app.services.report_service import ReportService
+    unread_notifications = None
+    if current_user.role == 'whistleblower':
+        unread_notifications = ReportService.count_unread_notifications(current_user.id)
+    return render_template('auth/account.html', unread_notifications=unread_notifications)
+
+
+@auth_bp.route('/logout_all', methods=['POST'])
+@login_required
+def logout_all():
+    # The session model tracks only the current session id (_sid); revoking it
+    # ends this session immediately. A full multi-device registry is a known
+    # limitation, so this is scoped to the active session (D9).
+    sid = session.get('_sid')
+    if sid:
+        db.session.add(RevokedToken(token_jti=sid, reason='logout_all'))
+        db.session.commit()
+    crypto_service.log_audit_action(action='logout_all', acting_user=current_user, acting_role=current_user.role, details='User ended active session from account settings', ip_address=request.remote_addr)
+    logout_user()
+    session.clear()
+    flash('Your active session has been ended. Please log in again.', 'info')
+    return redirect(url_for('auth.login'))
+
+
 @auth_bp.route('/delete_account', methods=['GET', 'POST'])
 @login_required
 def delete_account():
-    if request.method == 'POST':
-        success, message = AuthService.request_account_deletion(current_user)
-        if success:
-            sid = session.get('_sid')
-            if sid:
-                db.session.add(RevokedToken(token_jti=sid, reason='account_deletion'))
-                db.session.commit()
-            logout_user()
-            session.clear()
-            flash(message, 'success')
-            return redirect(url_for('auth.login'))
-        else:
-            flash(message, 'danger')
-    return render_template('auth/delete_account.html')
+    # FR-W4: visiting this endpoint submits a deletion REQUEST for System Admin
+    # review and deactivates the account immediately, then logs the user out.
+    # It does not delete directly; final deletion is done by a System Admin.
+    success, message = AuthService.request_account_deletion(current_user)
+    if success:
+        sid = session.get('_sid')
+        if sid:
+            db.session.add(RevokedToken(token_jti=sid, reason='account_deletion_requested'))
+            db.session.commit()
+        logout_user()
+        session.clear()
+        flash(message, 'info')
+    else:
+        flash(message, 'danger')
+    return redirect(url_for('auth.login'))

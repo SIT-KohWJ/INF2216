@@ -23,6 +23,8 @@ class User(UserMixin, db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     failed_login_attempts = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime, nullable=True)
+    deletion_requested = db.Column(db.Boolean, default=False)
+    deletion_requested_at = db.Column(db.DateTime, nullable=True)
     # Bump this timestamp to force-expire every active session for this user
     # (used on password reset and password change).
     sessions_invalidated_at = db.Column(db.DateTime, nullable=True)

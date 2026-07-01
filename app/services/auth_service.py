@@ -1,7 +1,10 @@
+import json
 import re
+import secrets
+from datetime import datetime
 
 from app import db
-from app.models import User, PasswordResetToken
+from app.models import User, PasswordResetToken, Report
 from app.services.crypto_service import crypto_service
 
 # Characters accepted as "special" for the password complexity policy.
@@ -225,21 +228,81 @@ class AuthService:
 
     @staticmethod
     def request_account_deletion(user):
+        """Whistleblower requests deletion (FR-W4).
+
+        This does NOT delete the account. It flags the request for System Admin
+        review and deactivates the account immediately so it cannot be used
+        while the request is pending. Final deletion is performed by a System
+        Admin via approve_account_deletion (FR-SA2).
+        """
+        if user.deletion_requested:
+            return False, "A deletion request is already pending for this account."
+        user.deletion_requested = True
+        user.deletion_requested_at = datetime.utcnow()
+        user.is_active = False
+        db.session.commit()
+        crypto_service.log_audit_action(action='account_deletion_requested', acting_user=None, acting_role=user.role, target_type='user', target_id=user.id, details='Whistleblower requested account deletion; account deactivated pending System Admin review')
+        return True, "Your account deletion request has been submitted for review. Your account is now deactivated."
+
+    @staticmethod
+    def approve_account_deletion(user, acting_user):
+        """System Admin approves a pending deletion request and performs the
+        anonymised deletion (FR-SA2).
+
+        Severs the reversible report->user link so the account cannot be
+        correlated to its submissions after deletion. Reports remain intact and
+        anonymous via submitter_hash (A6, NFR1). Reports and audit logs are
+        preserved; only credentials and profile data are removed.
+        """
+        if not user.deletion_requested:
+            return False, "This account has no pending deletion request."
         user_role = user.role
+        # Scrub any submitter identity that may still live inside the encrypted
+        # report payload (legacy reports stored submitter_email/name), and sever
+        # the submitter_hash so reports can no longer be re-correlated to this
+        # user_id. Then null user_id. After this the account is unrecoverable.
+        for report in Report.query.filter_by(user_id=user.id).all():
+            if report.encrypted_data:
+                try:
+                    data = json.loads(crypto_service.decrypt_data(report.encrypted_data))
+                    data.pop('submitter_email', None)
+                    data.pop('submitter_name', None)
+                    report.encrypted_data = crypto_service.encrypt_data(json.dumps(data))
+                except Exception:
+                    # If a payload can't be read, drop it rather than risk leaking PII.
+                    report.encrypted_data = None
+            report.submitter_hash = secrets.token_hex(32)
+            report.user_id = None
+        PasswordResetToken.query.filter_by(user_id=user.id, used=False).update({'used': True})
         user.email = f'deleted_{user.id}@deleted.sitinform'
         user.password_hash = ''
         user.first_name = 'Deleted'
         user.last_name = 'User'
         user.is_active = False
         user.invalidate_all_sessions()
+        user.deletion_requested = False
+        user.deletion_requested_at = None
+        db.session.commit()
+        crypto_service.log_audit_action(action='account_deletion_approved', acting_user=acting_user, acting_role=acting_user.role, target_type='user', target_id=user.id, details=f'Deletion request approved for {user_role} account; report links severed, reports and audit logs preserved')
+        return True, "Account deletion approved. Reports and audit records have been preserved for integrity."
+
+    @staticmethod
+    def deny_account_deletion(user, acting_user):
+        """System Admin denies a pending deletion request and reactivates the
+        account (FR-SA2)."""
+        if not user.deletion_requested:
+            return False, "This account has no pending deletion request."
+        user.deletion_requested = False
+        user.deletion_requested_at = None
+        user.is_active = True
         db.session.commit()
         crypto_service.log_audit_action(
-            action='account_deletion',
-            acting_user=None, acting_role=user_role,
+            action='user_reactivation',
+            acting_user=acting_user, acting_role=acting_user.role,
             target_type='user', target_id=user.id,
-            details='Account deleted; reports and audit logs preserved for integrity',
+            details='Account deletion request denied; account reactivated',
         )
-        return True, "Account deleted successfully. Your reports and audit records have been preserved for integrity."
+        return True, "Account deletion request denied. The account has been reactivated."
 
     @staticmethod
     def get_users_by_role(role):
