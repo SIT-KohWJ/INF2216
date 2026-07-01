@@ -35,7 +35,15 @@ def get_audit_logs():
 @login_required
 def get_stats():
     from app.models import Report
-    stats = {'total': Report.query.count(), 'received': Report.query.filter_by(status='Received').count(), 'triaged': Report.query.filter_by(status='Triaged').count(), 'investigating': Report.query.filter_by(status='Investigating').count(), 'resolved': Report.query.filter_by(status='Resolved').count()}
+    stats = {
+        'total': Report.query.count(),
+        'received': Report.query.filter_by(status='Received').count(),
+        'triaged': Report.query.filter_by(status='Triaged').count(),
+        'planning': Report.query.filter_by(status='Planning').count(),
+        'investigating': Report.query.filter_by(status='Investigating').count(),
+        'under_review': Report.query.filter_by(status='Under Review').count(),
+        'closed': Report.query.filter_by(status='Closed').count()
+    }
     return jsonify(stats)
 
 

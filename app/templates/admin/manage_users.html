@@ -1,84 +1,150 @@
 {% extends "base.html" %}
 {% block title %}Manage Users - SITinform{% endblock %}
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12 d-flex justify-content-between align-items-center">
-        <div><h2><i class="fas fa-users"></i> Manage Users</h2></div>
-        {% if current_user.role == 'system_admin' %}
-        <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary"><i class="fas fa-user-plus"></i> Create User</a>
+<div class="mu-page">
+    <section class="mu-page__hero">
+        <div class="mu-page__hero-copy">
+            <div class="mu-page__hero-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div>
+                <h1 class="mu-page__title">Manage Users</h1>
+                <p class="mu-page__subtitle">View and manage users in the system.</p>
+            </div>
+        </div>
+
+        <a href="{{ url_for('admin.create_user') }}" class="btn mu-page__create-btn">
+            <i class="fas fa-user-plus"></i>
+            <span>Create User</span>
+        </a>
+    </section>
+
+    <section class="mu-page__panel">
+        {% if users %}
+        <div class="table-responsive">
+            <table class="table mu-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td><span class="mu-id">{{ user.id[:8] }}...</span></td>
+                        <td>{{ user.full_name }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            <span class="mu-pill mu-pill--role-{% if user.role == 'report_admin' %}report-admin{% elif user.role == 'system_admin' %}system-admin{% else %}{{ user.role|replace('_', '-') }}{% endif %}">
+                                {% if user.role == 'whistleblower' %}
+                                <i class="fas fa-user"></i>
+                                {% elif user.role == 'investigator' %}
+                                <i class="fas fa-user-secret"></i>
+                                {% elif user.role == 'report_admin' %}
+                                <i class="fas fa-shield-alt"></i>
+                                {% else %}
+                                <i class="fas fa-cog"></i>
+                                {% endif %}
+                                <span>{{ get_role_display_name(user.role) }}</span>
+                            </span>
+                        </td>
+                        <td>
+                            <span class="mu-pill mu-pill--active">
+                                <span class="mu-pill__dot"></span>
+                                <span>Active</span>
+                            </span>
+                        </td>
+                        <td>{{ format_date(user.created_at) }}</td>
+                        <td>
+                            {% if user.id != current_user.id %}
+                            <div class="mu-actions">
+                                <a href="{{ url_for('admin.change_user_role', user_id=user.id) }}" class="mu-action-btn mu-action-btn--amber">
+                                    <i class="fas fa-user-shield"></i>
+                                    <span>Role</span>
+                                </a>
+
+                                <form method="POST" action="{{ url_for('admin.deactivate_user', user_id=user.id) }}" class="mu-actions__form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="mu-action-btn mu-action-btn--red" onclick="return confirm('Suspend this account?')">
+                                        <i class="fas fa-ban"></i>
+                                        <span>Suspend</span>
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <span class="mu-current-user">Current User</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="mu-empty">
+            <i class="fas fa-info-circle"></i>
+            <span>No users found.</span>
+        </div>
         {% endif %}
-    </div>
-</div>
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                {% if users %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
-                        <tbody>
-                            {% for user in users %}
-                            <tr>
-                                <td><small class="text-muted">{{ user.id[:8] }}...</small></td>
-                                <td>{{ user.full_name }}</td>
-                                <td>{{ user.email }}</td>
-                                <td><span class="badge bg-secondary">{{ get_role_display_name(user.role) }}</span></td>
-                                <td><span class="badge bg-success">Active</span></td>
-                                <td>{{ format_date(user.created_at) }}</td>
-                                <td>
-                                    {% if user.id != current_user.id %}
-                                        {% if current_user.role == 'system_admin' %}
-                                        <a href="{{ url_for('admin.change_user_role', user_id=user.id) }}" class="btn btn-sm btn-outline-warning"><i class="fas fa-user-shield"></i> Role</a>
-                                        {% endif %}
-                                        <form method="POST" action="{{ url_for('admin.deactivate_user', user_id=user.id) }}" style="display:inline">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Suspend this account?')"><i class="fas fa-ban"></i> Suspend</button>
-                                        </form>
-                                    {% else %}
-                                    <span class="text-muted">Current User</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="alert alert-info">No users found.</div>
-                {% endif %}
+    </section>
+
+    {% if suspended_users %}
+    <section class="mu-page__panel mu-page__panel--secondary">
+        <div class="mu-page__panel-header">
+            <div class="mu-page__panel-title">
+                <i class="fas fa-user-slash"></i>
+                <span>Suspended Accounts</span>
             </div>
         </div>
-    </div>
-</div>
-{% if suspended_users and current_user.role == 'system_admin' %}
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card border-warning">
-            <div class="card-header bg-warning text-dark"><h5 class="mb-0"><i class="fas fa-user-slash"></i> Suspended Accounts</h5></div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead><tr><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
-                        <tbody>
-                            {% for user in suspended_users %}
-                            <tr>
-                                <td>{{ user.email }}</td>
-                                <td>{{ get_role_display_name(user.role) }}</td>
-                                <td>
-                                    <form method="POST" action="{{ url_for('admin.reactivate_user', user_id=user.id) }}" style="display:inline">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-success"><i class="fas fa-undo"></i> Reactivate</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+
+        <div class="table-responsive">
+            <table class="table mu-table mu-table--compact">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in suspended_users %}
+                    <tr>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            <span class="mu-pill mu-pill--role-{% if user.role == 'report_admin' %}report-admin{% elif user.role == 'system_admin' %}system-admin{% else %}{{ user.role|replace('_', '-') }}{% endif %}">
+                                {% if user.role == 'whistleblower' %}
+                                <i class="fas fa-user"></i>
+                                {% elif user.role == 'investigator' %}
+                                <i class="fas fa-user-secret"></i>
+                                {% elif user.role == 'report_admin' %}
+                                <i class="fas fa-shield-alt"></i>
+                                {% else %}
+                                <i class="fas fa-cog"></i>
+                                {% endif %}
+                                <span>{{ get_role_display_name(user.role) }}</span>
+                            </span>
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin.reactivate_user', user_id=user.id) }}" class="mu-actions__form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="mu-action-btn mu-action-btn--green">
+                                    <i class="fas fa-undo"></i>
+                                    <span>Reactivate</span>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-    </div>
+    </section>
+    {% endif %}
 </div>
-{% endif %}
 {% endblock %}

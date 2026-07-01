@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}
+{% if page_mode == 'create' %}Create Investigation Plan{% elif page_mode == 'edit' %}Edit Investigation Plan{% else %}View Investigation Plan{% endif %} - SITinform
+{% endblock %}
+{% block content %}
+<div class="plan-page">
+    <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="plan-page__back-link">
+        <i class="fas fa-arrow-left"></i>
+        <span>Back to Report</span>
+    </a>
+
+    <section class="plan-page__hero">
+        <div class="plan-page__hero-icon">
+            <i class="fas fa-clipboard-list"></i>
+        </div>
+        <div>
+            <h1 class="plan-page__title">
+                {% if page_mode == 'create' %}Create Investigation Plan{% elif page_mode == 'edit' %}Edit Investigation Plan{% else %}View Investigation Plan{% endif %}
+            </h1>
+            <p class="plan-page__subtitle">
+                {% if page_mode == 'create' %}
+                Create the investigation plan details for this report.
+                {% elif page_mode == 'edit' %}
+                Update and manage the investigation plan details for this report.
+                {% else %}
+                Review the investigation plan details for this report.
+                {% endif %}
+            </p>
+        </div>
+    </section>
+
+    <section class="plan-page__report-card">
+        <div class="plan-page__report-icon">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <div class="plan-page__report-copy">
+            <span class="plan-page__report-label">Report:</span>
+            <span class="plan-page__report-ref">{{ report.reference_number }}</span>
+            <span class="plan-page__report-sep">-</span>
+            <span class="plan-page__report-title">{{ report.title }}</span>
+        </div>
+    </section>
+
+    <section class="plan-page__panel">
+        <form method="POST" class="plan-form">
+            {{ form.hidden_tag() }}
+
+            <div class="plan-form__section">
+                <div class="plan-form__section-title">
+                    <span class="plan-form__section-icon"><i class="fas fa-user-tie"></i></span>
+                    <span>Investigator Information</span>
+                </div>
+
+                <div class="plan-form__grid plan-form__grid--three">
+                    <div class="plan-form__field">
+                        {{ form.investigator_full_name.label(class="plan-form__label") }}
+                        <div class="plan-form__control-wrap">
+                            <span class="plan-form__control-icon"><i class="far fa-user"></i></span>
+                            {{ form.investigator_full_name(class="form-control plan-form__control plan-form__control--with-icon", disabled=read_only) }}
+                        </div>
+                    </div>
+
+                    <div class="plan-form__field">
+                        {{ form.investigator_job_title.label(class="plan-form__label") }}
+                        <div class="plan-form__control-wrap">
+                            <span class="plan-form__control-icon"><i class="fas fa-briefcase"></i></span>
+                            {{ form.investigator_job_title(class="form-control plan-form__control plan-form__control--with-icon", disabled=read_only) }}
+                        </div>
+                    </div>
+
+                    <div class="plan-form__field">
+                        {{ form.investigator_staff_id.label(class="plan-form__label") }}
+                        <div class="plan-form__control-wrap">
+                            <span class="plan-form__control-icon"><i class="far fa-id-badge"></i></span>
+                            {{ form.investigator_staff_id(class="form-control plan-form__control plan-form__control--with-icon", disabled=read_only) }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="plan-form__grid plan-form__grid--single">
+                    <div class="plan-form__field plan-form__field--date">
+                        {{ form.planning_date.label(class="plan-form__label") }}
+                        <div class="plan-form__control-wrap">
+                            {{ form.planning_date(class="form-control plan-form__control", type="date", disabled=read_only) }}
+                            <span class="plan-form__control-trailing"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="plan-form__divider"></div>
+
+            <div class="plan-form__section">
+                <div class="plan-form__section-title">
+                    <span class="plan-form__section-icon"><i class="fas fa-file-alt"></i></span>
+                    <span>Case Information</span>
+                </div>
+
+                <div class="plan-form__field">
+                    {{ form.case_overview.label(class="plan-form__label") }}
+                    {{ form.case_overview(class="form-control plan-form__control plan-form__textarea", rows=6, disabled=read_only) }}
+                </div>
+
+                <div class="plan-form__grid plan-form__grid--two">
+                    <div class="plan-form__field">
+                        {{ form.incident_date.label(class="plan-form__label") }}
+                        <div class="plan-form__control-wrap">
+                            {{ form.incident_date(class="form-control plan-form__control", type="date", disabled=read_only) }}
+                            <span class="plan-form__control-trailing"></span>
+                        </div>
+                    </div>
+
+                    <div class="plan-form__field">
+                        {{ form.incident_time.label(class="plan-form__label") }}
+                        <div class="plan-form__control-wrap">
+                            {{ form.incident_time(class="form-control plan-form__control", type="time", disabled=read_only) }}
+                            <span class="plan-form__control-trailing"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="plan-form__field">
+                    {{ form.incident_where.label(class="plan-form__label") }}
+                    <div class="plan-form__control-wrap">
+                        <span class="plan-form__control-icon"><i class="fas fa-map-marker-alt"></i></span>
+                        {{ form.incident_where(class="form-control plan-form__control plan-form__control--with-icon", disabled=read_only) }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="plan-form__footer">
+                <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="plan-form__secondary-btn">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back to Report</span>
+                </a>
+
+                {% if not read_only %}
+                {{ form.submit(class="btn plan-form__submit-btn") }}
+                {% endif %}
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

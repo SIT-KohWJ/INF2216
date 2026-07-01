@@ -104,6 +104,18 @@ class InvestigationNoteForm(FlaskForm):
     submit = SubmitField('Add Note')
 
 
+class InvestigationPlanForm(FlaskForm):
+    investigator_full_name = StringField('Investigator Full Name', validators=[DataRequired(), Length(max=128)])
+    investigator_job_title = StringField('Investigator Job Title', validators=[DataRequired(), Length(max=128)])
+    investigator_staff_id = StringField('Investigator Staff ID', validators=[DataRequired(), Length(max=64)])
+    planning_date = DateField('Planning Date', format='%Y-%m-%d', validators=[DataRequired()])
+    case_overview = TextAreaField('Case Overview', validators=[DataRequired(), Length(max=5000)])
+    incident_date = DateField('Incident Date', format='%Y-%m-%d', validators=[DataRequired()])
+    incident_time = TimeField('Incident Time', format='%H:%M', validators=[DataRequired()])
+    incident_where = StringField('Incident Where', validators=[DataRequired(), Length(max=255)])
+    submit = SubmitField('Save Investigation Plan')
+
+
 class OutcomeForm(FlaskForm):
     outcome = SelectField('Outcome', choices=[
         ('action_taken', 'Action Taken'),

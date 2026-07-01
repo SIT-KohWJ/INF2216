@@ -89,6 +89,8 @@ class AuthService:
         Non-enumeration: the flash message at the call-site is always
         "Invalid email or password" regardless of the exact failure reason.
         """
+        email = email.lower().strip()
+
         user = User.query.filter_by(email=email).first()
 
         if user and user.is_locked():
