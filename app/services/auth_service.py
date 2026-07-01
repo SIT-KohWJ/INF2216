@@ -1,4 +1,6 @@
+import json
 import re
+import secrets
 from datetime import datetime
 
 from app import db
@@ -255,7 +257,22 @@ class AuthService:
         if not user.deletion_requested:
             return False, "This account has no pending deletion request."
         user_role = user.role
-        Report.query.filter_by(user_id=user.id).update({'user_id': None})
+        # Scrub any submitter identity that may still live inside the encrypted
+        # report payload (legacy reports stored submitter_email/name), and sever
+        # the submitter_hash so reports can no longer be re-correlated to this
+        # user_id. Then null user_id. After this the account is unrecoverable.
+        for report in Report.query.filter_by(user_id=user.id).all():
+            if report.encrypted_data:
+                try:
+                    data = json.loads(crypto_service.decrypt_data(report.encrypted_data))
+                    data.pop('submitter_email', None)
+                    data.pop('submitter_name', None)
+                    report.encrypted_data = crypto_service.encrypt_data(json.dumps(data))
+                except Exception:
+                    # If a payload can't be read, drop it rather than risk leaking PII.
+                    report.encrypted_data = None
+            report.submitter_hash = secrets.token_hex(32)
+            report.user_id = None
         PasswordResetToken.query.filter_by(user_id=user.id, used=False).update({'used': True})
         user.email = f'deleted_{user.id}@deleted.sitinform'
         user.password_hash = ''

@@ -50,7 +50,11 @@ class ReportService:
                     return None, f"'{safe_name}' is not a valid file. Only real PDF, DOCX, PNG, and JPG files are accepted."
 
         submitter_hash = crypto_service.generate_user_hash(user.id)
-        report_data = {'title': title, 'description': description, 'category': category, 'submitter_email': user.email, 'submitter_name': user.full_name}
+        # Do NOT persist submitter identity (email/name) in the report payload.
+        # The report must stay anonymous even to someone holding the encryption
+        # key, and it must remain unrecoverable after the account is deleted.
+        # submitter_hash provides the only (anonymous) link back to a user.
+        report_data = {'title': title, 'description': description, 'category': category}
         encrypted_data = crypto_service.encrypt_data(json.dumps(report_data))
 
         reference_number = crypto_service.generate_reference_number()
