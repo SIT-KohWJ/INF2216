@@ -39,7 +39,7 @@ def register():
 @limiter.limit("10 per minute")
 def login():
     if current_user.is_authenticated:
-        if current_user.role in ['system_admin', 'admin']:
+        if current_user.role in ['system_admin', 'report_admin']:
             return redirect(url_for('admin.dashboard'))
         if current_user.role == 'investigator':
             return redirect(url_for('reports.investigator_dashboard'))
@@ -57,7 +57,7 @@ def login():
             session['_sid'] = str(uuid.uuid4())
             session['_session_created_at'] = datetime.utcnow().isoformat()
 
-            if user.role in ['system_admin', 'admin']:
+            if user.role in ['system_admin', 'report_admin']:
                 return redirect(url_for('admin.dashboard'))
             elif user.role == 'investigator':
                 return redirect(url_for('reports.investigator_dashboard'))
