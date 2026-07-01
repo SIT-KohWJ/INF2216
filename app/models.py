@@ -19,6 +19,8 @@ class User(UserMixin, db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     failed_login_attempts = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime, nullable=True)
+    deletion_requested = db.Column(db.Boolean, default=False)
+    deletion_requested_at = db.Column(db.DateTime, nullable=True)
 
     reports = db.relationship('Report', backref='submitter', lazy=True, foreign_keys='Report.user_id')
     investigation_notes = db.relationship('InvestigationNote', backref='investigator', lazy=True, foreign_keys='InvestigationNote.investigator_id')

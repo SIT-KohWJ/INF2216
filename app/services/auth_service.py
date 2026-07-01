@@ -128,21 +128,60 @@ class AuthService:
 
     @staticmethod
     def request_account_deletion(user):
+        """Whistleblower requests deletion (FR-W4).
+
+        This does NOT delete the account. It flags the request for System Admin
+        review and deactivates the account immediately so it cannot be used
+        while the request is pending. Final deletion is performed by a System
+        Admin via approve_account_deletion (FR-SA2).
+        """
+        if user.deletion_requested:
+            return False, "A deletion request is already pending for this account."
+        user.deletion_requested = True
+        user.deletion_requested_at = datetime.utcnow()
+        user.is_active = False
+        db.session.commit()
+        crypto_service.log_audit_action(action='account_deletion_requested', acting_user=None, acting_role=user.role, target_type='user', target_id=user.id, details='Whistleblower requested account deletion; account deactivated pending System Admin review')
+        return True, "Your account deletion request has been submitted for review. Your account is now deactivated."
+
+    @staticmethod
+    def approve_account_deletion(user, acting_user):
+        """System Admin approves a pending deletion request and performs the
+        anonymised deletion (FR-SA2).
+
+        Severs the reversible report->user link so the account cannot be
+        correlated to its submissions after deletion. Reports remain intact and
+        anonymous via submitter_hash (A6, NFR1). Reports and audit logs are
+        preserved; only credentials and profile data are removed.
+        """
+        if not user.deletion_requested:
+            return False, "This account has no pending deletion request."
         user_role = user.role
-        # Sever the reversible report->user link so the account cannot be
-        # correlated to its submissions after deletion. Reports remain intact
-        # and anonymous via submitter_hash (A6, NFR1).
         Report.query.filter_by(user_id=user.id).update({'user_id': None})
-        # Invalidate any outstanding password reset tokens for the account.
         PasswordResetToken.query.filter_by(user_id=user.id, used=False).update({'used': True})
         user.email = f'deleted_{user.id}@deleted.sitinform'
         user.password_hash = ''
         user.first_name = 'Deleted'
         user.last_name = 'User'
         user.is_active = False
+        user.deletion_requested = False
+        user.deletion_requested_at = None
         db.session.commit()
-        crypto_service.log_audit_action(action='account_deletion', acting_user=None, acting_role=user_role, target_type='user', target_id=user.id, details='Account deleted, report links severed, reports and audit logs preserved')
-        return True, "Account deleted successfully. Your reports and audit records have been preserved for integrity."
+        crypto_service.log_audit_action(action='account_deletion_approved', acting_user=acting_user, acting_role=acting_user.role, target_type='user', target_id=user.id, details=f'Deletion request approved for {user_role} account; report links severed, reports and audit logs preserved')
+        return True, "Account deletion approved. Reports and audit records have been preserved for integrity."
+
+    @staticmethod
+    def deny_account_deletion(user, acting_user):
+        """System Admin denies a pending deletion request and reactivates the
+        account (FR-SA2)."""
+        if not user.deletion_requested:
+            return False, "This account has no pending deletion request."
+        user.deletion_requested = False
+        user.deletion_requested_at = None
+        user.is_active = True
+        db.session.commit()
+        crypto_service.log_audit_action(action='account_deletion_denied', acting_user=acting_user, acting_role=acting_user.role, target_type='user', target_id=user.id, details='Deletion request denied; account reactivated')
+        return True, "Account deletion request denied and the account has been reactivated."
 
     @staticmethod
     def get_users_by_role(role):

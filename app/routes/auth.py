@@ -114,19 +114,48 @@ def reset_password():
     return render_template('auth/reset_password.html', form=form)
 
 
+@auth_bp.route('/account')
+@login_required
+def account():
+    from app.services.report_service import ReportService
+    unread_notifications = None
+    if current_user.role == 'whistleblower':
+        unread_notifications = ReportService.count_unread_notifications(current_user.id)
+    return render_template('auth/account.html', unread_notifications=unread_notifications)
+
+
+@auth_bp.route('/logout_all', methods=['POST'])
+@login_required
+def logout_all():
+    # The session model tracks only the current session id (_sid); revoking it
+    # ends this session immediately. A full multi-device registry is a known
+    # limitation, so this is scoped to the active session (D9).
+    sid = session.get('_sid')
+    if sid:
+        db.session.add(RevokedToken(token_jti=sid, reason='logout_all'))
+        db.session.commit()
+    crypto_service.log_audit_action(action='logout_all', acting_user=current_user, acting_role=current_user.role, details='User ended active session from account settings', ip_address=request.remote_addr)
+    logout_user()
+    session.clear()
+    flash('Your active session has been ended. Please log in again.', 'info')
+    return redirect(url_for('auth.login'))
+
+
 @auth_bp.route('/delete_account', methods=['GET', 'POST'])
 @login_required
 def delete_account():
     if request.method == 'POST':
+        # FR-W4: this submits a deletion REQUEST for System Admin review and
+        # deactivates the account immediately. It does not delete directly.
         success, message = AuthService.request_account_deletion(current_user)
         if success:
             sid = session.get('_sid')
             if sid:
-                db.session.add(RevokedToken(token_jti=sid, reason='account_deletion'))
+                db.session.add(RevokedToken(token_jti=sid, reason='account_deletion_requested'))
                 db.session.commit()
             logout_user()
             session.clear()
-            flash(message, 'success')
+            flash(message, 'info')
             return redirect(url_for('auth.login'))
         else:
             flash(message, 'danger')

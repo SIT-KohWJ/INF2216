@@ -35,8 +35,15 @@ CREATE TABLE IF NOT EXISTS users (
     created_at             TIMESTAMP    NOT NULL DEFAULT now(),
     updated_at             TIMESTAMP    NOT NULL DEFAULT now(),
     failed_login_attempts  INTEGER      NOT NULL DEFAULT 0,
-    locked_until           TIMESTAMP
+    locked_until           TIMESTAMP,
+    deletion_requested     BOOLEAN      NOT NULL DEFAULT FALSE,  -- FR-W4: whistleblower requested deletion, pending System Admin review
+    deletion_requested_at  TIMESTAMP
 );
+
+-- Idempotent column adds for existing databases (the CREATE TABLE above is a
+-- no-op once the table exists, so new columns must be added explicitly).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_requested    BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_requested_at TIMESTAMP;
 
 -- ---------------------------------------------------------------------------
 -- reports
@@ -241,7 +248,8 @@ INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
   (gen_random_uuid()::text, 'whistleblower1@sit.singaporetech.edu.sg', crypt('Password123!', gen_salt('bf', 12)), 'Whistleblower', 'One',  'whistleblower'),
   (gen_random_uuid()::text, 'whistleblower2@sit.singaporetech.edu.sg', crypt('Password123!', gen_salt('bf', 12)), 'Whistleblower', 'Two',  'whistleblower'),
   (gen_random_uuid()::text, 'investigator1@sit.singaporetech.edu.sg',  crypt('Password123!', gen_salt('bf', 12)), 'Investigator',  'One',  'investigator'),
-  (gen_random_uuid()::text, 'admin@sit.singaporetech.edu.sg',          crypt('Admin123!',    gen_salt('bf', 12)), 'Report',        'Admin','admin'),
+  (gen_random_uuid()::text, 'admin@sit.singaporetech.edu.sg',          crypt('Admin123!',    gen_salt('bf', 12)), 'Report',        'Adm
+  in','admin'),
   (gen_random_uuid()::text, 'sysadmin@sit.singaporetech.edu.sg',       crypt('Sysadmin123!', gen_salt('bf', 12)), 'System',        'Admin','system_admin')
 ON CONFLICT (email) DO UPDATE
   SET password_hash = EXCLUDED.password_hash,

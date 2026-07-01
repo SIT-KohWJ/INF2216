@@ -243,3 +243,12 @@ def notifications():
 def mark_notification_read(notification_id):
     ReportService.mark_notification_read(notification_id, current_user.id)
     return redirect(url_for('reports.notifications'))
+
+
+@reports_bp.route('/notifications/read_all', methods=['POST'])
+@login_required
+def mark_all_notifications_read():
+    count = ReportService.mark_all_notifications_read(current_user.id)
+    if count:
+        flash(f'{count} notification(s) marked as read.', 'success')
+    return redirect(url_for('reports.notifications'))

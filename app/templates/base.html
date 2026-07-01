@@ -27,16 +27,7 @@
                     {% if current_user.role == 'whistleblower' %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
                     {% endif %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="accountMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-user-circle"></i> Account</a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountMenu">
-                            <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}"><i class="fas fa-key"></i> Change Password</a></li>
-                            {% if current_user.role == 'whistleblower' %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="{{ url_for('auth.delete_account') }}"><i class="fas fa-trash-alt"></i> Delete Account</a></li>
-                            {% endif %}
-                        </ul>
-                    </li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.account') }}"><i class="fas fa-user-circle"></i> Account</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                     {% else %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}">Login</a></li>

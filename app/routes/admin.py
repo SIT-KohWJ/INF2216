@@ -201,8 +201,9 @@ def manage_users():
     if current_user.role != 'system_admin':
         abort(403)
     users = User.query.filter_by(is_active=True).all()
-    suspended_users = User.query.filter_by(is_active=False).all()
-    return render_template('admin/manage_users.html', users=users, suspended_users=suspended_users)
+    suspended_users = User.query.filter_by(is_active=False, deletion_requested=False).all()
+    deletion_requests = User.query.filter_by(deletion_requested=True).all()
+    return render_template('admin/manage_users.html', users=users, suspended_users=suspended_users, deletion_requests=deletion_requests)
 
 
 @admin_bp.route('/users/<user_id>/deactivate', methods=['POST'])
@@ -218,6 +219,32 @@ def deactivate_user(user_id):
         flash('User account suspended successfully', 'success')
     else:
         flash('User not found', 'danger')
+    return redirect(url_for('admin.manage_users'))
+
+
+@admin_bp.route('/users/<user_id>/approve_deletion', methods=['POST'])
+def approve_deletion(user_id):
+    if current_user.role != 'system_admin':
+        abort(403)
+    user = AuthService.get_user_by_id(user_id)
+    if not user:
+        flash('User not found', 'danger')
+        return redirect(url_for('admin.manage_users'))
+    success, message = AuthService.approve_account_deletion(user, current_user)
+    flash(message, 'success' if success else 'danger')
+    return redirect(url_for('admin.manage_users'))
+
+
+@admin_bp.route('/users/<user_id>/deny_deletion', methods=['POST'])
+def deny_deletion(user_id):
+    if current_user.role != 'system_admin':
+        abort(403)
+    user = AuthService.get_user_by_id(user_id)
+    if not user:
+        flash('User not found', 'danger')
+        return redirect(url_for('admin.manage_users'))
+    success, message = AuthService.deny_account_deletion(user, current_user)
+    flash(message, 'success' if success else 'danger')
     return redirect(url_for('admin.manage_users'))
 
 

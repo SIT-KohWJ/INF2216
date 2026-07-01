@@ -381,3 +381,13 @@ class ReportService:
             db.session.commit()
             return True
         return False
+
+    @staticmethod
+    def mark_all_notifications_read(user_id):
+        updated = Notification.query.filter_by(user_id=user_id, read=False).update({'read': True})
+        db.session.commit()
+        return updated
+
+    @staticmethod
+    def count_unread_notifications(user_id):
+        return Notification.query.filter_by(user_id=user_id, read=False).count()

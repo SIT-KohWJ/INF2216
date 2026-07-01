@@ -48,41 +48,85 @@ def create_report(submitter, status="Received"):
     return report
 
 
-def test_deletion_severs_report_link_but_preserves_report(app):
+# ── Request phase (FR-W4) ────────────────────────────────────────────────────
+
+def test_request_flags_and_deactivates_without_deleting(app):
     user = create_user()
     report = create_report(user)
-    report_id = report.id
-    original_hash = report.submitter_hash
 
     success, _ = AuthService.request_account_deletion(user)
 
     assert success is True
-    refreshed = Report.query.get(report_id)
-    # Report still exists and is fully preserved...
-    assert refreshed is not None
-    assert refreshed.title == "Report title"
-    # ...but the reversible FK link to the user is gone.
-    assert refreshed.user_id is None
-    # Anonymous linkage (submitter_hash) is untouched.
-    assert refreshed.submitter_hash == original_hash
+    assert user.deletion_requested is True
+    assert user.deletion_requested_at is not None
+    assert user.is_active is False
+    # Nothing is scrubbed yet — profile and report link remain until approval.
+    assert user.email == "wb@singaporetech.edu.sg"
+    assert Report.query.get(report.id).user_id == user.id
 
 
-def test_deletion_scrubs_personal_data(app):
+def test_request_records_audit_entry_by_role(app):
     user = create_user()
     user_id = user.id
 
     AuthService.request_account_deletion(user)
 
+    entry = AuditLog.query.filter_by(
+        action="account_deletion_requested", target_id=user_id
+    ).first()
+    assert entry is not None
+    assert entry.acting_role == "whistleblower"
+
+
+def test_duplicate_request_is_rejected(app):
+    user = create_user()
+    AuthService.request_account_deletion(user)
+
+    success, message = AuthService.request_account_deletion(user)
+
+    assert success is False
+    assert "already pending" in message
+
+
+# ── Approve phase (FR-SA2) ───────────────────────────────────────────────────
+
+def test_approve_severs_report_link_but_preserves_report(app):
+    user = create_user()
+    admin = create_user(email="sys@singaporetech.edu.sg", role="system_admin")
+    report = create_report(user)
+    report_id = report.id
+    original_hash = report.submitter_hash
+
+    AuthService.request_account_deletion(user)
+    success, _ = AuthService.approve_account_deletion(user, admin)
+
+    assert success is True
+    refreshed = Report.query.get(report_id)
+    assert refreshed is not None
+    assert refreshed.title == "Report title"
+    assert refreshed.user_id is None
+    assert refreshed.submitter_hash == original_hash
+
+
+def test_approve_scrubs_personal_data_and_clears_flag(app):
+    user = create_user()
+    admin = create_user(email="sys@singaporetech.edu.sg", role="system_admin")
+    user_id = user.id
+
+    AuthService.request_account_deletion(user)
+    AuthService.approve_account_deletion(user, admin)
+
     scrubbed = User.query.get(user_id)
     assert scrubbed.email == f"deleted_{user_id}@deleted.sitinform"
     assert scrubbed.password_hash == ""
     assert scrubbed.first_name == "Deleted"
-    assert scrubbed.last_name == "User"
     assert scrubbed.is_active is False
+    assert scrubbed.deletion_requested is False
 
 
-def test_deletion_invalidates_pending_reset_tokens(app):
+def test_approve_invalidates_pending_reset_tokens(app):
     user = create_user()
+    admin = create_user(email="sys@singaporetech.edu.sg", role="system_admin")
     token = PasswordResetToken(
         user_id=user.id,
         token=uuid.uuid4().hex,
@@ -92,30 +136,73 @@ def test_deletion_invalidates_pending_reset_tokens(app):
     db.session.commit()
 
     AuthService.request_account_deletion(user)
+    AuthService.approve_account_deletion(user, admin)
 
     assert PasswordResetToken.query.get(token.id).used is True
 
 
-def test_deletion_records_audit_entry(app):
+def test_approve_records_audit_entry_with_admin_role(app):
     user = create_user()
+    admin = create_user(email="sys@singaporetech.edu.sg", role="system_admin")
     user_id = user.id
 
     AuthService.request_account_deletion(user)
+    AuthService.approve_account_deletion(user, admin)
 
-    entry = AuditLog.query.filter_by(action="account_deletion", target_id=user_id).first()
+    entry = AuditLog.query.filter_by(
+        action="account_deletion_approved", target_id=user_id
+    ).first()
     assert entry is not None
-    # Audit entry preserves the role for accountability, not the identity.
-    assert entry.acting_role == "whistleblower"
+    assert entry.acting_role == "system_admin"
 
 
-def test_deletion_only_affects_own_reports(app):
+def test_approve_without_pending_request_is_rejected(app):
+    user = create_user()
+    admin = create_user(email="sys@singaporetech.edu.sg", role="system_admin")
+
+    success, message = AuthService.approve_account_deletion(user, admin)
+
+    assert success is False
+    assert "no pending deletion request" in message
+
+
+def test_approve_only_affects_own_reports(app):
     user_a = create_user(email="a@singaporetech.edu.sg")
     user_b = create_user(email="b@singaporetech.edu.sg")
+    admin = create_user(email="sys@singaporetech.edu.sg", role="system_admin")
     report_a = create_report(user_a)
     report_b = create_report(user_b)
 
     AuthService.request_account_deletion(user_a)
+    AuthService.approve_account_deletion(user_a, admin)
 
     assert Report.query.get(report_a.id).user_id is None
-    # Other users' reports are untouched.
     assert Report.query.get(report_b.id).user_id == user_b.id
+
+
+# ── Deny phase (FR-SA2) ──────────────────────────────────────────────────────
+
+def test_deny_reactivates_and_clears_flag(app):
+    user = create_user()
+    admin = create_user(email="sys@singaporetech.edu.sg", role="system_admin")
+    report = create_report(user)
+
+    AuthService.request_account_deletion(user)
+    success, _ = AuthService.deny_account_deletion(user, admin)
+
+    assert success is True
+    assert user.deletion_requested is False
+    assert user.is_active is True
+    # Data is fully intact after denial.
+    assert user.email == "wb@singaporetech.edu.sg"
+    assert Report.query.get(report.id).user_id == user.id
+
+
+def test_deny_without_pending_request_is_rejected(app):
+    user = create_user()
+    admin = create_user(email="sys@singaporetech.edu.sg", role="system_admin")
+
+    success, message = AuthService.deny_account_deletion(user, admin)
+
+    assert success is False
+    assert "no pending deletion request" in message
