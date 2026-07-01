@@ -62,11 +62,11 @@
                 </div>
                 <div class="wb-report-view__detail-block">
                     <div class="wb-report-view__detail-label">Title</div>
-                    <h2 class="wb-report-view__detail-title">{{ report.title }}</h2>
+                    <h2 class="wb-report-view__detail-title">{{ report.display_title if report.display_title is defined else report.title }}</h2>
                 </div>
                 <div class="wb-report-view__detail-block">
                     <div class="wb-report-view__detail-label">Description</div>
-                    <p class="wb-report-view__detail-copy mb-0">{{ decrypted_data.description if decrypted_data else report.description }}</p>
+                    <p class="wb-report-view__detail-copy mb-0">{{report.display_description }}</p>
                 </div>
             </section>
 
@@ -193,7 +193,7 @@
                 </div>
             </div>
 
-            <h2 class="inv-report-view__report-title">{{ report.title }}</h2>
+            <h2 class="inv-report-view__report-title">{{ report.display_title if report.display_title is defined else report.title }}</h2>
 
             <div class="inv-report-view__meta-row">
                 <div class="inv-report-view__meta-item">
@@ -218,7 +218,8 @@
                     <span class="inv-report-view__description-icon"><i class="fas fa-comment-alt"></i></span>
                     <span>Description</span>
                 </div>
-                <p class="inv-report-view__description-copy mb-0">{{ decrypted_data.description if decrypted_data else report.description }}</p>
+                <p class="inv-report-view__description-copy mb-0">{{ decrypted_data.get('description', report.display_description) if decrypted_data else report.display_description}}
+</p>
             </div>
         </section>
 
@@ -378,10 +379,10 @@
         <div class="card mb-4">
             <div class="card-header"><h5 class="mb-0">Report Details</h5></div>
             <div class="card-body">
-                <h4>{{ decrypted_data.title if decrypted_data else report.title }}</h4>
+                <h4><h4>{{ decrypted_data.get('title', report.display_title) if decrypted_data else report.display_title }}</h4></h4>
                 <p class="text-muted">Category: {{ get_category_display_name(report.category) }}{% if current_user.role != 'whistleblower' %} | Severity: <span class="badge {% if report.severity == 'critical' %}bg-danger{% elif report.severity == 'high' %}bg-warning text-dark{% elif report.severity == 'medium' %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ report.severity|capitalize }}</span>{% endif %} | Submitted: {{ format_datetime(report.created_at) }}</p>
                 {% if decrypted_data %}
-                <p>{{ decrypted_data.description }}</p>
+                <p>{{ report.display_description }}</p>
                 {% else %}
                 <p>{{ report.description }}</p>
                 {% endif %}

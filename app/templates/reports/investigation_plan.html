@@ -37,7 +37,7 @@
             <span class="plan-page__report-label">Report:</span>
             <span class="plan-page__report-ref">{{ report.reference_number }}</span>
             <span class="plan-page__report-sep">-</span>
-            <span class="plan-page__report-title">{{ report.title }}</span>
+            <span class="plan-page__report-title">{{ report.display_title if report.display_title is defined else report.title }}</span>
         </div>
     </section>
 
