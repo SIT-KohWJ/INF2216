@@ -4,6 +4,10 @@ from app import db, login_manager
 from flask_login import UserMixin
 import bcrypt
 
+# Pre-computed with rounds=12 so dummy_check() takes the same wall-clock time
+# as a real bcrypt.checkpw(), preventing user-enumeration via response timing.
+_DUMMY_HASH = bcrypt.hashpw(b'__sitinform_dummy_timing_prevention__', bcrypt.gensalt(rounds=12))
+
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -19,6 +23,9 @@ class User(UserMixin, db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     failed_login_attempts = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime, nullable=True)
+    # Bump this timestamp to force-expire every active session for this user
+    # (used on password reset and password change).
+    sessions_invalidated_at = db.Column(db.DateTime, nullable=True)
 
     reports = db.relationship('Report', backref='submitter', lazy=True, foreign_keys='Report.user_id')
     investigation_notes = db.relationship('InvestigationNote', backref='investigator', lazy=True, foreign_keys='InvestigationNote.investigator_id')
@@ -29,8 +36,13 @@ class User(UserMixin, db.Model):
         return f'<User {self.email}>'
 
     def set_password(self, password):
+        try:
+            from flask import current_app
+            rounds = current_app.config.get('BCRYPT_ROUNDS', 12)
+        except RuntimeError:
+            rounds = 12
         password_bytes = password.encode('utf-8')
-        salt = bcrypt.gensalt()
+        salt = bcrypt.gensalt(rounds=rounds)
         hashed = bcrypt.hashpw(password_bytes, salt)
         self.password_hash = hashed.decode('utf-8')
 
@@ -40,6 +52,17 @@ class User(UserMixin, db.Model):
         password_bytes = password.encode('utf-8')
         hashed_bytes = self.password_hash.encode('utf-8')
         return bcrypt.checkpw(password_bytes, hashed_bytes)
+
+    @staticmethod
+    def dummy_check(password):
+        """Bcrypt check against a dummy hash.
+
+        Call this when no real user is found so the response time stays
+        indistinguishable from a failed login on an existing account.
+        """
+        if isinstance(password, str):
+            password = password.encode('utf-8')
+        bcrypt.checkpw(password, _DUMMY_HASH)
 
     def get_id(self):
         return str(self.id)
@@ -65,6 +88,10 @@ class User(UserMixin, db.Model):
     def reset_failed_login(self):
         self.failed_login_attempts = 0
         self.locked_until = None
+
+    def invalidate_all_sessions(self):
+        """Expire every active session for this user by advancing the watermark."""
+        self.sessions_invalidated_at = datetime.utcnow()
 
 
 class Report(db.Model):
@@ -158,6 +185,32 @@ class AuditLog(db.Model):
     details = db.Column(db.Text)
     ip_address = db.Column(db.String(45))
     signature = db.Column(db.Text)
+
+
+class OtpToken(db.Model):
+    """Short-lived OTP records used as the first gate in password reset.
+
+    The OTP itself is never stored; only its SHA-256 hash is persisted so a
+    database breach cannot reveal live OTPs. Attempt counting prevents brute
+    force even within the expiry window.
+    """
+    __tablename__ = 'otp_tokens'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = db.Column(db.String(120), nullable=False, index=True)
+    otp_hash = db.Column(db.String(64), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    verified = db.Column(db.Boolean, default=False)
+    attempts = db.Column(db.Integer, default=0)
+
+    @property
+    def is_expired(self):
+        return datetime.utcnow() > self.expires_at
+
+    @property
+    def is_usable(self):
+        return not self.verified and not self.is_expired and self.attempts < 5
 
 
 class PasswordResetToken(db.Model):

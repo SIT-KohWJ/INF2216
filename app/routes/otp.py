@@ -74,4 +74,4 @@ def verify():
         else:
             flash(message, 'danger')
 
-    return render_template('auth/verify_otp.html', form=form, email=email)
+    return render_template('auth/verify_otp.html', form=form)
