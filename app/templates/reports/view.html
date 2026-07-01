@@ -73,24 +73,21 @@
             <section class="wb-report-view__panel">
                 <div class="wb-report-view__panel-header">
                     <div class="wb-report-view__panel-title">
-                        <span class="wb-report-view__panel-title-icon"><i class="fas fa-sticky-note"></i></span>
-                        <span>Investigation Notes</span>
+                        <span class="wb-report-view__panel-title-icon"><i class="fas fa-gavel"></i></span>
+                        <span>Recommended Outcome</span>
                     </div>
                 </div>
-                {% if notes %}
-                <div class="wb-report-view__notes">
-                    {% for note in notes %}
-                    <div class="wb-report-view__note-item">
-                        <div class="wb-report-view__note-icon"><i class="fas fa-align-left"></i></div>
-                        <div class="wb-report-view__note-content">
-                            <div class="wb-report-view__note-date">{{ note.created_at.strftime('%d %b %Y, %-I:%M %p') if note.created_at else '' }}</div>
-                            <p class="wb-report-view__note-copy mb-0">{{ note.note }}</p>
-                        </div>
-                    </div>
-                    {% endfor %}
+                {% if report.outcome %}
+                <div class="wb-report-view__detail-block">
+                    <div class="wb-report-view__detail-label">Outcome</div>
+                    <h2 class="wb-report-view__detail-title">{{ report.outcome.replace('_', ' ')|title }}</h2>
+                </div>
+                <div class="wb-report-view__detail-block">
+                    <div class="wb-report-view__detail-label">Details</div>
+                    <p class="wb-report-view__detail-copy mb-0">{{ report.outcome_details or 'No details provided.' }}</p>
                 </div>
                 {% else %}
-                <div class="wb-report-view__empty-copy">No investigation notes have been shared for this report yet.</div>
+                <div class="wb-report-view__empty-copy">No recommended outcome has been submitted yet.</div>
                 {% endif %}
             </section>
 
@@ -257,20 +254,6 @@
                 </button>
                 {% endif %}
 
-                {% if can_close_report %}
-                <form method="POST" action="{{ url_for('reports.close_report', report_id=report.id) }}" class="inv-report-view__action-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="inv-report-view__action-btn inv-report-view__action-btn--green" onclick="return confirm('Close this report?')">
-                        <i class="fas fa-check-circle"></i>
-                        <span>Close Report</span>
-                    </button>
-                </form>
-                {% else %}
-                <button type="button" class="inv-report-view__action-btn inv-report-view__action-btn--green" disabled>
-                    <i class="fas fa-check-circle"></i>
-                    <span>Close Report</span>
-                </button>
-                {% endif %}
             </div>
         </section>
 
@@ -308,6 +291,34 @@
             </div>
             {% else %}
             <div class="inv-report-view__empty-copy">No investigation notes have been added yet.</div>
+            {% endif %}
+        </section>
+
+        <section class="inv-report-view__panel">
+            <div class="inv-report-view__panel-header">
+                <div class="inv-report-view__panel-title">
+                    <span class="inv-report-view__panel-icon"><i class="fas fa-gavel"></i></span>
+                    <span>Recommended Outcome</span>
+                </div>
+            </div>
+
+            {% if report.outcome %}
+            <div class="inv-report-view__description-card">
+                <div class="inv-report-view__description-title">
+                    <span class="inv-report-view__description-icon"><i class="fas fa-check-circle"></i></span>
+                    <span>Outcome</span>
+                </div>
+                <p class="inv-report-view__description-copy mb-0">{{ report.outcome.replace('_', ' ')|title }}</p>
+            </div>
+            <div class="inv-report-view__description-card">
+                <div class="inv-report-view__description-title">
+                    <span class="inv-report-view__description-icon"><i class="fas fa-align-left"></i></span>
+                    <span>Details</span>
+                </div>
+                <p class="inv-report-view__description-copy mb-0">{{ report.outcome_details or 'No details provided.' }}</p>
+            </div>
+            {% else %}
+            <div class="inv-report-view__empty-copy">No recommended outcome has been submitted yet.</div>
             {% endif %}
         </section>
 
@@ -414,6 +425,17 @@
             </div>
         </div>
         {% endif %}
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0"><i class="fas fa-gavel"></i> Recommended Outcome</h5></div>
+            <div class="card-body">
+                {% if report.outcome %}
+                <p class="mb-1"><strong>Outcome:</strong> {{ report.outcome.replace('_', ' ')|title }}</p>
+                <p class="mb-0">{{ report.outcome_details or 'No details provided.' }}</p>
+                {% else %}
+                <p class="mb-0 text-muted">No recommended outcome has been submitted yet.</p>
+                {% endif %}
+            </div>
+        </div>
     </div>
     <div class="col-md-4">
         {% if current_user.role in ['investigator', 'report_admin'] %}
@@ -430,10 +452,14 @@
                 {% endif %}
                 {% if can_manage_investigation_actions %}
                 <a href="{{ url_for('reports.add_investigation_note', report_id=report.id) }}" class="btn btn-outline-primary w-100 mb-2"><i class="fas fa-sticky-note"></i> Add Note</a>
+                {% if can_recommend_outcome %}
                 <a href="{{ url_for('reports.recommend_outcome', report_id=report.id) }}" class="btn btn-outline-warning w-100 mb-2"><i class="fas fa-gavel"></i> Recommend Outcome</a>
+                {% endif %}
                 {% else %}
                 <button type="button" class="btn btn-outline-primary w-100 mb-2" disabled><i class="fas fa-sticky-note"></i> Add Note</button>
+                {% if current_user.role == 'investigator' %}
                 <button type="button" class="btn btn-outline-warning w-100 mb-2" disabled><i class="fas fa-gavel"></i> Recommend Outcome</button>
+                {% endif %}
                 {% endif %}
                 {% if can_close_report %}
                 <form method="POST" action="{{ url_for('reports.close_report', report_id=report.id) }}">

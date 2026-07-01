@@ -224,6 +224,8 @@ class ReportService:
 
     @staticmethod
     def recommend_outcome(report, outcome, outcome_details, acting_user):
+        if acting_user.role != 'investigator':
+            return False, 'Only investigators can recommend outcomes'
         if outcome not in ReportService.VALID_OUTCOMES:
             return False, "Invalid outcome"
         block_reason = ReportService.get_investigation_action_block_reason(report)
