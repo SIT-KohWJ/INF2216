@@ -57,9 +57,19 @@ class ReportService:
 
         if evidence_files:
             for file in evidence_files:
-                result, msg = ReportService._add_evidence(report.id, file)
-                if not result:
-                    crypto_service.log_audit_action(action='evidence_upload_failed', acting_user=user, acting_role=user.role, target_type='report', target_id=report.id, details=f'Evidence upload failed: {msg}')
+                if file and file.filename:
+                    result, msg = ReportService._add_evidence(report.id, file)
+                    if not result:
+                        db.session.rollback()
+                        crypto_service.log_audit_action(
+                            action='evidence_upload_failed',
+                            acting_user=user,
+                            acting_role=user.role,
+                            target_type='report',
+                            target_id=report.id,
+                            details=f'Evidence upload rejected: {msg}'
+                        )
+                        return None, f"Report not submitted. Evidence upload failed: {msg}"
 
         crypto_service.log_audit_action(action='report_submission', acting_user=user, acting_role=user.role, target_type='report', target_id=report.id, details=f'New report submitted with reference: {reference_number}')
         return report, f"Report submitted successfully. Your reference number is: {reference_number}"
