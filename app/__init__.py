@@ -117,5 +117,8 @@ def create_app(config_name=None):
     # missing tables, which is what we want for the SQLite dev fallback.
     with app.app_context():
         db.create_all()
+        from app.services.report_service import ReportService
+        ReportService.migrate_investigation_plan_incident_when_column()
+        ReportService.normalize_report_statuses()
 
     return app

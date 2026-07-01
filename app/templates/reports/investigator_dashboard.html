@@ -1,98 +1,228 @@
 {% extends "base.html" %}
 {% block title %}Investigator Dashboard - SITinform{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const filter = document.getElementById('investigator-status-filter');
+    const rows = document.querySelectorAll('[data-case-row]');
+    if (!filter || !rows.length) return;
+
+    filter.addEventListener('change', function () {
+        const selected = this.value;
+        rows.forEach(function (row) {
+            const status = row.dataset.status || '';
+            row.style.display = (!selected || status === selected) ? '' : 'none';
+        });
+    });
+});
+</script>
+{% endblock %}
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h2><i class="fas fa-user-secret"></i> Investigator Dashboard</h2>
-        <p class="text-muted">Welcome, {{ current_user.full_name }}! Shared case overview.</p>
-    </div>
-</div>
-<div class="row mb-4">
-    <div class="col-md-3 mb-3">
-        <div class="card text-white bg-primary"><div class="card-body"><h5 class="card-title"><i class="fas fa-files-o"></i> Total Cases</h5><p class="card-text fs-3">{{ all_reports|length }}</p></div></div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="card text-white bg-info"><div class="card-body"><h5 class="card-title"><i class="fas fa-user-check"></i> My Assigned</h5><p class="card-text fs-3">{{ my_reports|length }}</p></div></div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="card text-white bg-warning"><div class="card-body"><h5 class="card-title"><i class="fas fa-search"></i> Investigating</h5><p class="card-text fs-3">{{ my_reports|selectattr('status', 'equalto', 'Investigating')|list|length }}</p></div></div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="card text-white bg-success"><div class="card-body"><h5 class="card-title"><i class="fas fa-check"></i> Resolved</h5><p class="card-text fs-3">{{ my_reports|selectattr('status', 'equalto', 'Resolved')|list|length }}</p></div></div>
-    </div>
-</div>
-{% if my_reports %}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card border-success">
-            <div class="card-header bg-success text-white"><h5 class="mb-0"><i class="fas fa-folder-open"></i> My Assigned Cases</h5></div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead><tr><th>Reference</th><th>Title</th><th>Category</th><th>Status</th><th>Submitted</th><th>Actions</th></tr></thead>
-                        <tbody>
-                            {% for report in my_reports %}
-                            <tr>
-                                <td><code>{{ report.reference_number }}</code></td>
-                                <td>{{ report.title }}</td>
-                                <td>{{ get_category_display_name(report.category) }}</td>
-                                <td><span class="badge {{ get_report_status_css(report.status) }}">{{ report.status }}</span></td>
-                                <td>{{ format_date(report.created_at) }}</td>
-                                <td><a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> View</a></td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+{% set total_cases = all_reports|length %}
+{% set assigned_cases = my_reports|length %}
+{% set planning_cases = my_reports|selectattr('status', 'equalto', 'Planning')|list|length %}
+{% set investigating_cases = my_reports|selectattr('status', 'equalto', 'Investigating')|list|length %}
+{% set review_cases = my_reports|selectattr('status', 'equalto', 'Under Review')|list|length %}
+{% set closed_cases = my_reports|selectattr('status', 'equalto', 'Closed')|list|length %}
+
+<div class="inv-dashboard">
+    <section class="inv-dashboard__hero">
+        <div class="inv-dashboard__hero-icon">
+            <i class="fas fa-user-secret"></i>
+        </div>
+        <div>
+            <h2 class="inv-dashboard__title">Investigator Dashboard</h2>
+            <p class="inv-dashboard__welcome">Welcome, <span>{{ current_user.full_name }}</span>! Here&apos;s your case overview.</p>
+        </div>
+    </section>
+
+    <section class="inv-dashboard__stats">
+        <article class="inv-stat-card inv-stat-card--blue">
+            <div class="inv-stat-card__icon"><i class="fas fa-folder-open"></i></div>
+            <div class="inv-stat-card__content">
+                <div class="inv-stat-card__title">Total Cases</div>
+                <div class="inv-stat-card__value">{{ total_cases }}</div>
+                <div class="inv-stat-card__copy">All cases in the system</div>
+            </div>
+        </article>
+
+        <article class="inv-stat-card inv-stat-card--cyan">
+            <div class="inv-stat-card__icon"><i class="fas fa-user"></i></div>
+            <div class="inv-stat-card__content">
+                <div class="inv-stat-card__title">My Assigned</div>
+                <div class="inv-stat-card__value">{{ assigned_cases }}</div>
+                <div class="inv-stat-card__copy">Cases assigned to you</div>
+            </div>
+        </article>
+
+        <article class="inv-stat-card inv-stat-card--slate">
+            <div class="inv-stat-card__icon"><i class="fas fa-clipboard-list"></i></div>
+            <div class="inv-stat-card__content">
+                <div class="inv-stat-card__title">Planning</div>
+                <div class="inv-stat-card__value">{{ planning_cases }}</div>
+                <div class="inv-stat-card__copy">Awaiting investigation</div>
+            </div>
+        </article>
+
+        <article class="inv-stat-card inv-stat-card--amber">
+            <div class="inv-stat-card__icon"><i class="fas fa-search"></i></div>
+            <div class="inv-stat-card__content">
+                <div class="inv-stat-card__title">Investigating</div>
+                <div class="inv-stat-card__value">{{ investigating_cases }}</div>
+                <div class="inv-stat-card__copy">Active investigations</div>
+            </div>
+        </article>
+
+        <article class="inv-stat-card inv-stat-card--navy">
+            <div class="inv-stat-card__icon"><i class="fas fa-balance-scale"></i></div>
+            <div class="inv-stat-card__content">
+                <div class="inv-stat-card__title">Under Review</div>
+                <div class="inv-stat-card__value">{{ review_cases }}</div>
+                <div class="inv-stat-card__copy">Awaiting review</div>
+            </div>
+        </article>
+
+        <article class="inv-stat-card inv-stat-card--green">
+            <div class="inv-stat-card__icon"><i class="fas fa-check"></i></div>
+            <div class="inv-stat-card__content">
+                <div class="inv-stat-card__title">Closed</div>
+                <div class="inv-stat-card__value">{{ closed_cases }}</div>
+                <div class="inv-stat-card__copy">Completed cases</div>
+            </div>
+        </article>
+    </section>
+
+    {% if my_reports %}
+    <section class="inv-dashboard__panel">
+        <div class="inv-dashboard__panel-header">
+            <div class="inv-dashboard__panel-title">
+                <span class="inv-dashboard__panel-title-icon inv-dashboard__panel-title-icon--green"><i class="fas fa-folder-open"></i></span>
+                <span>My Assigned Cases</span>
+                <span class="inv-dashboard__count-pill">{{ assigned_cases }}</span>
+            </div>
+            <a href="#all-cases-overview" class="btn inv-dashboard__link-btn">
+                <span>View All Cases</span>
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </div>
+        <div class="inv-dashboard__table-wrap">
+            <table class="table inv-dashboard__table">
+                <thead>
+                    <tr>
+                        <th>Reference</th>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in my_reports %}
+                    <tr>
+                        <td><div class="inv-dashboard__reference">{{ report.reference_number }}</div></td>
+                        <td>{{ report.title }}</td>
+                        <td>{{ get_category_display_name(report.category) }}</td>
+                        <td>
+                            <span class="wb-status-pill {% if report.status == 'Closed' %}wb-status-pill--closed{% elif report.status == 'Under Review' %}wb-status-pill--review{% elif report.status == 'Investigating' %}wb-status-pill--investigating{% elif report.status == 'Planning' %}wb-status-pill--planning{% else %}wb-status-pill--open{% endif %}">
+                                <span class="wb-status-pill__dot"></span>
+                                {{ report.status }}
+                            </span>
+                        </td>
+                        <td>{{ report.created_at.strftime('%d %b %Y') if report.created_at else '' }}</td>
+                        <td>
+                            <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="btn inv-dashboard__action-btn">
+                                <i class="fas fa-eye"></i>
+                                <span>View</span>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="inv-dashboard__panel" id="all-cases-overview">
+        <div class="inv-dashboard__panel-header">
+            <div class="inv-dashboard__panel-title">
+                <span class="inv-dashboard__panel-title-icon"><i class="fas fa-list-ul"></i></span>
+                <span>All Cases Overview</span>
+            </div>
+            <div class="inv-dashboard__filter-wrap">
+                <select id="investigator-status-filter" class="form-select inv-dashboard__filter-select">
+                    <option value="">All Statuses</option>
+                    <option value="Received">Received</option>
+                    <option value="Triaged">Triaged</option>
+                    <option value="Planning">Planning</option>
+                    <option value="Investigating">Investigating</option>
+                    <option value="Under Review">Under Review</option>
+                    <option value="Closed">Closed</option>
+                </select>
             </div>
         </div>
-    </div>
-</div>
-{% endif %}
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0"><i class="fas fa-list"></i> All Cases Overview</h5></div>
-            <div class="card-body">
-                <div class="alert alert-info mb-3"><i class="fas fa-info-circle"></i> You can only view details of cases assigned to you.</div>
-                {% if all_reports %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead><tr><th>Reference</th><th>Category</th><th>Status</th><th>Assigned Investigator</th><th>Action</th></tr></thead>
-                        <tbody>
-                            {% for report in all_reports %}
-                            <tr class="{{ 'table-success' if report.id in my_report_ids else '' }}">
-                                <td><code>{{ report.reference_number }}</code></td>
-                                <td>{{ get_category_display_name(report.category) }}</td>
-                                <td><span class="badge {{ get_report_status_css(report.status) }}">{{ report.status }}</span></td>
-                                <td>
-                                    {% if report.investigator_id %}
-                                        {% if report.investigator_id == current_user.id %}
-                                            <span class="badge bg-success">You</span>
-                                        {% else %}
-                                            {{ investigator_map.get(report.investigator_id, 'Unknown') }}
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="badge bg-secondary">Unassigned</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if report.id in my_report_ids %}
-                                        <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> View</a>
-                                    {% else %}
-                                        <span class="btn btn-sm btn-outline-secondary disabled"><i class="fas fa-lock"></i> Restricted</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="alert alert-info"><i class="fas fa-info-circle"></i> No reports in the system yet.</div>
-                {% endif %}
-            </div>
+
+        <div class="inv-dashboard__notice">
+            <i class="fas fa-info-circle"></i>
+            <span>You can only view details of cases that are assigned to you.</span>
         </div>
-    </div>
+
+        {% if all_reports %}
+        <div class="inv-dashboard__table-wrap">
+            <table class="table inv-dashboard__table">
+                <thead>
+                    <tr>
+                        <th>Reference</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Assigned Investigator</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in all_reports %}
+                    <tr data-case-row data-status="{{ report.status }}">
+                        <td><div class="inv-dashboard__reference">{{ report.reference_number }}</div></td>
+                        <td>{{ get_category_display_name(report.category) }}</td>
+                        <td>
+                            <span class="wb-status-pill {% if report.status == 'Closed' %}wb-status-pill--closed{% elif report.status == 'Under Review' %}wb-status-pill--review{% elif report.status == 'Investigating' %}wb-status-pill--investigating{% elif report.status == 'Planning' %}wb-status-pill--planning{% else %}wb-status-pill--open{% endif %}">
+                                <span class="wb-status-pill__dot"></span>
+                                {{ report.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if report.investigator_id %}
+                                {% if report.investigator_id == current_user.id %}
+                                    <span class="inv-dashboard__assignee-pill">You</span>
+                                {% else %}
+                                    {{ investigator_map.get(report.investigator_id, 'Unknown') }}
+                                {% endif %}
+                            {% else %}
+                                <span class="inv-dashboard__assignee-pill inv-dashboard__assignee-pill--muted">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if report.id in my_report_ids %}
+                                <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="btn inv-dashboard__action-btn">
+                                    <i class="fas fa-eye"></i>
+                                    <span>View</span>
+                                </a>
+                            {% else %}
+                                <span class="btn inv-dashboard__action-btn inv-dashboard__action-btn--disabled disabled">
+                                    <i class="fas fa-lock"></i>
+                                    <span>Restricted</span>
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="inv-dashboard__empty">No reports in the system yet.</div>
+        {% endif %}
+    </section>
 </div>
 {% endblock %}
