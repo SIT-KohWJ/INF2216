@@ -57,7 +57,16 @@ class ReportService:
         while Report.query.filter_by(reference_number=reference_number).first():
             reference_number = crypto_service.generate_reference_number()
 
-        report = Report(submitter_hash=submitter_hash, title=title, description=description, category=category, severity=severity, encrypted_data=encrypted_data, user_id=user.id, reference_number=reference_number)
+        report = Report(
+            reference_number=reference_number,
+            submitter_hash=submitter_hash,
+            title="[Encrypted Report]",
+            description="[Encrypted]",
+            category=category,
+            severity=severity,
+            encrypted_data=encrypted_data,
+            user_id=user.id
+        )
         db.session.add(report)
         db.session.flush()
 
@@ -67,9 +76,19 @@ class ReportService:
 
         if evidence_files:
             for file in evidence_files:
-                result, msg = ReportService._add_evidence(report.id, file)
-                if not result:
-                    crypto_service.log_audit_action(action='evidence_upload_failed', acting_user=user, acting_role=user.role, target_type='report', target_id=report.id, details=f'Evidence upload failed: {msg}')
+                if file and file.filename:
+                    result, msg = ReportService._add_evidence(report.id, file)
+                    if not result:
+                        db.session.rollback()
+                        crypto_service.log_audit_action(
+                            action='evidence_upload_failed',
+                            acting_user=user,
+                            acting_role=user.role,
+                            target_type='report',
+                            target_id=report.id,
+                            details=f'Evidence upload rejected: {msg}'
+                        )
+                        return None, f"Report not submitted. Evidence upload failed: {msg}"
 
         crypto_service.log_audit_action(action='report_submission', acting_user=user, acting_role=user.role, target_type='report', target_id=report.id, details=f'New report submitted with reference: {reference_number}')
         return report, f"Report submitted successfully. Your reference number is: {reference_number}"
@@ -100,33 +119,56 @@ class ReportService:
         return evidence, "Evidence uploaded successfully"
 
     @staticmethod
-    def get_reports_for_user(user):
-        if user.role == 'whistleblower':
-            return Report.query.filter_by(user_id=user.id).all()
-        elif user.role == 'investigator':
-            return Report.query.filter_by(investigator_id=user.id).all()
-        elif user.role == 'report_admin':
-            return Report.query.all()
-        return []
+    def attach_display_fields(report):
+        decrypted_data = ReportService.decrypt_report_data(report)
+
+        if decrypted_data:
+            report.display_title = decrypted_data.get("title", report.title)
+            report.display_description = decrypted_data.get("description", report.description)
+        else:
+            report.display_title = report.title
+            report.display_description = report.description
+
+        return report
+
+
+    @staticmethod
+    def attach_display_fields_to_reports(reports):
+        for report in reports:
+            ReportService.attach_display_fields(report)
+        return reports
+
 
     @staticmethod
     def get_all_reports_for_investigator_dashboard():
-        return Report.query.all()
+        reports = Report.query.all()
+        return ReportService.attach_display_fields_to_reports(reports)
+
+    @staticmethod
+    def get_reports_for_user(user):
+        if user.role == 'whistleblower':
+            reports = Report.query.filter_by(user_id=user.id).all()
+        elif user.role == 'investigator':
+            reports = Report.query.filter_by(investigator_id=user.id).all()
+        elif user.role == 'report_admin':
+            reports = Report.query.all()
+        else:
+            reports = []
+
+        return ReportService.attach_display_fields_to_reports(reports)
 
     @staticmethod
     def get_report_by_id(report_id, user):
         report = Report.query.get(report_id)
         if not report:
             return None, "Report not found"
-        if user.role == 'whistleblower':
-            if not crypto_service.verify_user_hash(user.id, report.submitter_hash):
-                if report.user_id != user.id:
-                    return None, "Report not found"
-        elif user.role == 'investigator':
-            if report.investigator_id != user.id:
-                return None, "Report not found"
-        elif user.role != 'report_admin':
-            return None, "Report not found"
+
+        if user.role == "whistleblower" and report.user_id != user.id:
+            return None, "Access denied"
+        if user.role == "investigator" and report.investigator_id != user.id:
+            return None, "Access denied"
+
+        ReportService.attach_display_fields(report)
         return report, None
 
     @staticmethod
@@ -343,10 +385,19 @@ class ReportService:
             query = query.filter(Report.created_at >= filters['date_from'])
         if filters.get('date_to'):
             query = query.filter(Report.created_at <= filters['date_to'])
+        reports = query.order_by(Report.created_at.desc()).all()
+
+        reports = ReportService.attach_display_fields_to_reports(reports)
+
         if filters.get('search'):
-            search_term = f"%{filters['search']}%"
-            query = query.filter(db.or_(Report.title.ilike(search_term), Report.description.ilike(search_term), Report.reference_number.ilike(search_term)))
-        return query.order_by(Report.created_at.desc()).all()
+            search_text = filters['search'].lower()
+            reports = [
+                report for report in reports
+                if search_text in (report.display_title or "").lower()
+                or search_text in (report.display_description or "").lower()
+            ]
+
+        return reports
 
     @staticmethod
     def get_report_audit_history(report_id):
