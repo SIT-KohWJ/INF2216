@@ -263,7 +263,7 @@ INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
   (gen_random_uuid()::text, 'whistleblower1@sit.singaporetech.edu.sg', crypt('Password123!', gen_salt('bf', 12)), 'Whistleblower', 'One',  'whistleblower'),
   (gen_random_uuid()::text, 'whistleblower2@sit.singaporetech.edu.sg', crypt('Password123!', gen_salt('bf', 12)), 'Whistleblower', 'Two',  'whistleblower'),
   (gen_random_uuid()::text, 'investigator1@sit.singaporetech.edu.sg',  crypt('Password123!', gen_salt('bf', 12)), 'Investigator',  'One',  'investigator'),
-  (gen_random_uuid()::text, 'admin@sit.singaporetech.edu.sg',          crypt('Admin123!',    gen_salt('bf', 12)), 'Report',        'Admin','admin'),
+  (gen_random_uuid()::text, 'reportadmin@sit.singaporetech.edu.sg',    crypt('Admin123!',    gen_salt('bf', 12)), 'Report',        'Admin','report_admin'),
   (gen_random_uuid()::text, 'sysadmin@sit.singaporetech.edu.sg',       crypt('Sysadmin123!', gen_salt('bf', 12)), 'System',        'Admin','system_admin')
 ON CONFLICT (email) DO UPDATE
   SET password_hash = EXCLUDED.password_hash,
