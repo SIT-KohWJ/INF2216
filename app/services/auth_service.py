@@ -1,5 +1,5 @@
 from app import db
-from app.models import User, PasswordResetToken
+from app.models import User, PasswordResetToken, Report
 from app.services.crypto_service import crypto_service
 from datetime import datetime, timedelta
 import re
@@ -129,13 +129,19 @@ class AuthService:
     @staticmethod
     def request_account_deletion(user):
         user_role = user.role
+        # Sever the reversible report->user link so the account cannot be
+        # correlated to its submissions after deletion. Reports remain intact
+        # and anonymous via submitter_hash (A6, NFR1).
+        Report.query.filter_by(user_id=user.id).update({'user_id': None})
+        # Invalidate any outstanding password reset tokens for the account.
+        PasswordResetToken.query.filter_by(user_id=user.id, used=False).update({'used': True})
         user.email = f'deleted_{user.id}@deleted.sitinform'
         user.password_hash = ''
         user.first_name = 'Deleted'
         user.last_name = 'User'
         user.is_active = False
         db.session.commit()
-        crypto_service.log_audit_action(action='account_deletion', acting_user=None, acting_role=user_role, target_type='user', target_id=user.id, details='Account deleted, reports and audit logs preserved')
+        crypto_service.log_audit_action(action='account_deletion', acting_user=None, acting_role=user_role, target_type='user', target_id=user.id, details='Account deleted, report links severed, reports and audit logs preserved')
         return True, "Account deleted successfully. Your reports and audit records have been preserved for integrity."
 
     @staticmethod
