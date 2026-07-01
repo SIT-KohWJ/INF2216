@@ -12,7 +12,7 @@
         <div class="card mb-4">
             <div class="card-header"><h5 class="mb-0">Report Details</h5></div>
             <div class="card-body">
-                <h4>{{ report.title }}</h4>
+                <h4>{{ decrypted_data.title if decrypted_data else report.title }}</h4>
                 <p class="text-muted">Category: {{ get_category_display_name(report.category) }}{% if current_user.role != 'whistleblower' %} | Severity: <span class="badge {% if report.severity == 'critical' %}bg-danger{% elif report.severity == 'high' %}bg-warning text-dark{% elif report.severity == 'medium' %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ report.severity|capitalize }}</span>{% endif %} | Submitted: {{ format_datetime(report.created_at) }}</p>
                 {% if decrypted_data %}
                 <p>{{ decrypted_data.description }}</p>

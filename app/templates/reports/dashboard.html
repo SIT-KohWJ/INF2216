@@ -51,7 +51,7 @@
                             {% for report in reports %}
                             <tr>
                                 <td><code>{{ report.reference_number }}</code></td>
-                                <td>{{ report.title }}</td>
+                                <td>{{ report.display_title if report.display_title is defined else report.title }}</td>
                                 <td>{{ get_category_display_name(report.category) }}</td>
                                 <td><span class="badge {{ get_report_status_css(report.status) }}">{{ report.status }}</span></td>
                                 <td>{{ format_date(report.created_at) }}</td>
