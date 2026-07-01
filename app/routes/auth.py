@@ -187,19 +187,18 @@ def logout_all():
 @auth_bp.route('/delete_account', methods=['GET', 'POST'])
 @login_required
 def delete_account():
-    if request.method == 'POST':
-        # FR-W4: this submits a deletion REQUEST for System Admin review and
-        # deactivates the account immediately. It does not delete directly.
-        success, message = AuthService.request_account_deletion(current_user)
-        if success:
-            sid = session.get('_sid')
-            if sid:
-                db.session.add(RevokedToken(token_jti=sid, reason='account_deletion_requested'))
-                db.session.commit()
-            logout_user()
-            session.clear()
-            flash(message, 'info')
-            return redirect(url_for('auth.login'))
-        else:
-            flash(message, 'danger')
-    return render_template('auth/delete_account.html')
+    # FR-W4: visiting this endpoint submits a deletion REQUEST for System Admin
+    # review and deactivates the account immediately, then logs the user out.
+    # It does not delete directly; final deletion is done by a System Admin.
+    success, message = AuthService.request_account_deletion(current_user)
+    if success:
+        sid = session.get('_sid')
+        if sid:
+            db.session.add(RevokedToken(token_jti=sid, reason='account_deletion_requested'))
+            db.session.commit()
+        logout_user()
+        session.clear()
+        flash(message, 'info')
+    else:
+        flash(message, 'danger')
+    return redirect(url_for('auth.login'))
