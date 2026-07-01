@@ -111,6 +111,28 @@ CREATE INDEX IF NOT EXISTS idx_notes_report_id       ON investigation_notes (rep
 CREATE INDEX IF NOT EXISTS idx_notes_investigator_id ON investigation_notes (investigator_id);
 
 -- ---------------------------------------------------------------------------
+-- investigation_plans
+-- one plan per report, linked to the assigned investigator who created/edited it
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS investigation_plans (
+    id                       VARCHAR(36)  PRIMARY KEY,
+    report_id                VARCHAR(36)  NOT NULL UNIQUE REFERENCES reports (id) ON DELETE CASCADE,
+    investigator_id          VARCHAR(36)  NOT NULL REFERENCES users (id),
+    investigator_full_name   VARCHAR(128) NOT NULL,
+    investigator_job_title   VARCHAR(128) NOT NULL,
+    investigator_staff_id    VARCHAR(64)  NOT NULL,
+    planning_date            DATE         NOT NULL,
+    case_overview            TEXT         NOT NULL,
+    incident_when            TIMESTAMP    NOT NULL,
+    incident_where           VARCHAR(255) NOT NULL,
+    created_at               TIMESTAMP    NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_investigation_plans_report_id
+    ON investigation_plans (report_id);
+CREATE INDEX IF NOT EXISTS idx_investigation_plans_investigator_id
+    ON investigation_plans (investigator_id);
+
+-- ---------------------------------------------------------------------------
 -- password_reset_tokens
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS password_reset_tokens (

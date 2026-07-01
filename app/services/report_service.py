@@ -1,5 +1,5 @@
 from app import db
-from app.models import Report, ReportStatusHistory, Evidence, InvestigationNote, Notification
+from app.models import Report, ReportStatusHistory, Evidence, InvestigationNote, InvestigationPlan, Notification
 from app.services.crypto_service import crypto_service
 from app.utils.validators import FileValidator, InputValidator
 from datetime import datetime
@@ -7,13 +7,22 @@ from flask import current_app
 import json
 import uuid
 import base64
+import magic
+from sqlalchemy import text
 
 
 class ReportService:
     VALID_CATEGORIES = ['academic_misconduct', 'financial_misconduct', 'harassment', 'policy_violation', 'ethical_concern', 'other']
-    VALID_STATUSES = ['Received', 'Triaged', 'Investigating', 'Resolved']
+    VALID_STATUSES = ['Received', 'Triaged', 'Planning', 'Investigating', 'Under Review', 'Closed']
     VALID_OUTCOMES = ['action_taken', 'dismissed', 'referred', 'insufficient_evidence']
-    VALID_TRANSFERS = {'Received': ['Triaged'], 'Triaged': ['Investigating'], 'Investigating': ['Resolved'], 'Resolved': []}
+    VALID_TRANSFERS = {
+        'Received': ['Triaged'],
+        'Triaged': ['Planning'],
+        'Planning': ['Investigating'],
+        'Investigating': ['Under Review'],
+        'Under Review': ['Closed'],
+        'Closed': []
+    }
 
     VALID_SEVERITIES = ['low', 'medium', 'high', 'critical']
 
@@ -29,6 +38,16 @@ class ReportService:
             return None, "Title must be 255 characters or less"
         if len(description) > 10000:
             return None, "Description must be 10000 characters or less"
+
+        if evidence_files:
+            allowed_exts = current_app.config.get('ALLOWED_EXTENSIONS', {'pdf', 'docx', 'png', 'jpg', 'jpeg'})
+            for file in evidence_files:
+                file_content = file.read()
+                file.seek(0)
+                if not FileValidator.validate_file_type(file_content, allowed_exts):
+                    from werkzeug.utils import secure_filename
+                    safe_name = secure_filename(file.filename)
+                    return None, f"'{safe_name}' is not a valid file. Only real PDF, DOCX, PNG, and JPG files are accepted."
 
         submitter_hash = crypto_service.generate_user_hash(user.id)
         report_data = {'title': title, 'description': description, 'category': category, 'submitter_email': user.email, 'submitter_name': user.full_name}
@@ -74,7 +93,8 @@ class ReportService:
         stored_filename = f"{uuid.uuid4().hex}_{original_filename}"
         encrypted_b64 = crypto_service.encrypt_data(file_content)
         raw_encrypted = base64.b64decode(encrypted_b64)
-        evidence = Evidence(report_id=report_id, original_filename=original_filename, stored_filename=stored_filename, file_type=file.content_type or 'application/octet-stream', file_size=file_size, encrypted_file_data=raw_encrypted)
+        detected_mime = magic.from_buffer(file_content[:2048], mime=True)
+        evidence = Evidence(report_id=report_id, original_filename=original_filename, stored_filename=stored_filename, file_type=detected_mime or 'application/octet-stream', file_size=file_size, encrypted_file_data=raw_encrypted)
         db.session.add(evidence)
         db.session.commit()
         return evidence, "Evidence uploaded successfully"
@@ -141,9 +161,14 @@ class ReportService:
 
     @staticmethod
     def assign_investigator(report, investigator, acting_user):
+        if report.status != 'Triaged':
+            return False, "Report must be triaged before assigning an investigator"
         report.investigator_id = investigator.id
         report.updated_at = datetime.utcnow()
-        db.session.commit()
+        success, message = ReportService.update_report_status(report, 'Planning', acting_user)
+        if not success:
+            db.session.rollback()
+            return False, message
         crypto_service.log_audit_action(action='investigator_assignment', acting_user=acting_user, acting_role=acting_user.role, target_type='report', target_id=report.id, details='Investigator assigned to report')
         if report.user_id:
             notification = Notification(user_id=report.user_id, message=f'An investigator has been assigned to your report ({report.reference_number}).', notification_type='investigator_assigned', related_report_id=report.id)
@@ -155,29 +180,149 @@ class ReportService:
     def recommend_outcome(report, outcome, outcome_details, acting_user):
         if outcome not in ReportService.VALID_OUTCOMES:
             return False, "Invalid outcome"
+        block_reason = ReportService.get_investigation_action_block_reason(report)
+        if block_reason:
+            return False, block_reason
         if acting_user.role == 'investigator' and report.investigator_id != acting_user.id:
             return False, "Report not found"
         report.outcome = outcome
         report.outcome_details = InputValidator.sanitize_html(outcome_details)
         report.updated_at = datetime.utcnow()
         db.session.commit()
+        if report.status == 'Investigating':
+            success, message = ReportService.update_report_status(report, 'Under Review', acting_user)
+            if not success:
+                return False, message
         crypto_service.log_audit_action(action='outcome_recommended', acting_user=acting_user, acting_role=acting_user.role, target_type='report', target_id=report.id, details=f'Outcome recommended: {outcome}')
         return True, "Outcome recommended successfully"
 
     @staticmethod
     def close_report(report, acting_user):
-        if report.status != 'Investigating':
-            return False, "Report must be in Investigating status to close"
-        return ReportService.update_report_status(report, 'Resolved', acting_user)
+        block_reason = ReportService.get_close_block_reason(report)
+        if block_reason:
+            return False, block_reason
+        return ReportService.update_report_status(report, 'Closed', acting_user)
 
     @staticmethod
     def add_investigation_note(report, investigator, note):
+        block_reason = ReportService.get_investigation_action_block_reason(report)
+        if block_reason:
+            return None, block_reason
         note = InputValidator.sanitize_html(note)
         investigation_note = InvestigationNote(report_id=report.id, investigator_id=investigator.id, note=note)
         db.session.add(investigation_note)
         db.session.commit()
         crypto_service.log_audit_action(action='investigation_note', acting_user=investigator, acting_role=investigator.role, target_type='report', target_id=report.id, details='Investigation note added')
         return investigation_note, "Note added successfully"
+
+    @staticmethod
+    def get_investigation_plan(report_id):
+        return InvestigationPlan.query.filter_by(report_id=report_id).first()
+
+    @staticmethod
+    def has_investigation_plan(report):
+        return report.investigation_plan is not None
+
+    @staticmethod
+    def get_investigation_action_block_reason(report):
+        if not ReportService.has_investigation_plan(report):
+            return "Complete the investigation plan before adding notes or recommending an outcome"
+        if report.status == 'Closed':
+            return "This report is already closed"
+        if report.status not in ['Investigating', 'Under Review']:
+            return f"Investigation actions are not available while the report is {report.status}"
+        return None
+
+    @staticmethod
+    def can_manage_investigation_actions(report):
+        return ReportService.get_investigation_action_block_reason(report) is None
+
+    @staticmethod
+    def get_close_block_reason(report):
+        if report.status == 'Closed':
+            return "This report is already closed"
+        if report.status != 'Under Review':
+            return "Report must be in Under Review status to close"
+        return None
+
+    @staticmethod
+    def can_close_report(report):
+        return ReportService.get_close_block_reason(report) is None
+
+    @staticmethod
+    def normalize_report_statuses():
+        changed = False
+        for report in Report.query.all():
+            normalized_status = report.status
+            if report.status == 'Resolved':
+                normalized_status = 'Closed'
+            elif report.status == 'Triaged' and report.investigator_id:
+                normalized_status = 'Investigating' if report.investigation_plan else 'Planning'
+            elif report.status == 'Investigating' and report.outcome:
+                normalized_status = 'Under Review'
+
+            if normalized_status != report.status:
+                report.status = normalized_status
+                report.updated_at = datetime.utcnow()
+                changed = True
+
+        if changed:
+            db.session.commit()
+
+    @staticmethod
+    def migrate_investigation_plan_incident_when_column():
+        if db.engine.dialect.name != 'postgresql':
+            return
+
+        column_type = db.session.execute(text("""
+            SELECT data_type
+            FROM information_schema.columns
+            WHERE table_name = 'investigation_plans'
+            AND column_name = 'incident_when'
+        """)).scalar()
+
+        if column_type != 'character varying':
+            return
+
+        try:
+            db.session.execute(text("""
+                ALTER TABLE investigation_plans
+                ALTER COLUMN incident_when
+                TYPE TIMESTAMP
+                USING incident_when::timestamp
+            """))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Failed to migrate investigation_plans.incident_when to TIMESTAMP')
+
+    @staticmethod
+    def create_or_update_investigation_plan(report, investigator, form):
+        plan = ReportService.get_investigation_plan(report.id)
+        is_new_plan = plan is None
+        if plan is None:
+            plan = InvestigationPlan(report_id=report.id, investigator_id=investigator.id)
+            db.session.add(plan)
+            message = "Investigation plan created successfully"
+        else:
+            message = "Investigation plan updated successfully"
+
+        plan.investigator_id = investigator.id
+        plan.investigator_full_name = InputValidator.sanitize_html(form.investigator_full_name.data)
+        plan.investigator_job_title = InputValidator.sanitize_html(form.investigator_job_title.data)
+        plan.investigator_staff_id = InputValidator.sanitize_html(form.investigator_staff_id.data)
+        plan.planning_date = form.planning_date.data
+        plan.case_overview = InputValidator.sanitize_html(form.case_overview.data)
+        plan.incident_when = datetime.combine(form.incident_date.data, form.incident_time.data)
+        plan.incident_where = InputValidator.sanitize_html(form.incident_where.data)
+        if is_new_plan and report.status == 'Planning':
+            success, status_message = ReportService.update_report_status(report, 'Investigating', investigator)
+            if not success:
+                db.session.rollback()
+                return None, status_message
+        else:
+            db.session.commit()
+        return plan, message
 
     @staticmethod
     def search_and_filter_reports(filters, user):

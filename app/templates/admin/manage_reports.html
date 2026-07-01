@@ -1,97 +1,152 @@
 {% extends "base.html" %}
 {% block title %}Manage Reports - SITinform{% endblock %}
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12"><h2><i class="fas fa-file-alt"></i> Manage Reports</h2></div>
-</div>
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header"><h6 class="mb-0"><i class="fas fa-filter"></i> Filter Reports</h6></div>
-            <div class="card-body">
-                <form method="GET" action="{{ url_for('admin.manage_reports') }}" class="row g-3">
-                    <div class="col-md-3">
-                        <select name="category" class="form-select">
-                            <option value="">All Categories</option>
-                            <option value="academic_misconduct" {% if filters.get('category') == 'academic_misconduct' %}selected{% endif %}>Academic Misconduct</option>
-                            <option value="financial_misconduct" {% if filters.get('category') == 'financial_misconduct' %}selected{% endif %}>Financial Misconduct</option>
-                            <option value="harassment" {% if filters.get('category') == 'harassment' %}selected{% endif %}>Harassment</option>
-                            <option value="policy_violation" {% if filters.get('category') == 'policy_violation' %}selected{% endif %}>Policy Violation</option>
-                            <option value="ethical_concern" {% if filters.get('category') == 'ethical_concern' %}selected{% endif %}>Ethical Concern</option>
-                            <option value="other" {% if filters.get('category') == 'other' %}selected{% endif %}>Other</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <select name="status" class="form-select">
-                            <option value="">All Statuses</option>
-                            <option value="Received" {% if filters.get('status') == 'Received' %}selected{% endif %}>Received</option>
-                            <option value="Triaged" {% if filters.get('status') == 'Triaged' %}selected{% endif %}>Triaged</option>
-                            <option value="Investigating" {% if filters.get('status') == 'Investigating' %}selected{% endif %}>Investigating</option>
-                            <option value="Resolved" {% if filters.get('status') == 'Resolved' %}selected{% endif %}>Resolved</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <select name="severity" class="form-select">
-                            <option value="">All Severities</option>
-                            <option value="low" {% if filters.get('severity') == 'low' %}selected{% endif %}>Low</option>
-                            <option value="medium" {% if filters.get('severity') == 'medium' %}selected{% endif %}>Medium</option>
-                            <option value="high" {% if filters.get('severity') == 'high' %}selected{% endif %}>High</option>
-                            <option value="critical" {% if filters.get('severity') == 'critical' %}selected{% endif %}>Critical</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ filters.get('search', '') }}">
-                    </div>
-                    <div class="col-md-1">
-                        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i></button>
-                    </div>
-                </form>
+<div class="mr-page">
+    <section class="mr-page__hero">
+        <div class="mr-page__hero-icon">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <div>
+            <h1 class="mr-page__title">Manage Reports</h1>
+            <p class="mr-page__subtitle">View, filter and manage all reports in the system.</p>
+        </div>
+    </section>
+
+    <section class="mr-page__panel">
+        <div class="mr-page__panel-header">
+            <div class="mr-page__panel-title">
+                <i class="fas fa-filter"></i>
+                <span>Filter Reports</span>
             </div>
         </div>
-    </div>
-</div>
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                {% if reports %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead><tr><th>Reference</th><th>Title</th><th>Category</th><th>Severity</th><th>Status</th><th>Investigator</th><th>Submitted</th><th>Actions</th></tr></thead>
-                        <tbody>
-                            {% for report in reports %}
-                            <tr>
-                                <td><code>{{ report.reference_number }}</code></td>
-                                <td>{{ report.title }}</td>
-                                <td>{{ get_category_display_name(report.category) }}</td>
-                                <td><span class="badge {% if report.severity == 'critical' %}bg-danger{% elif report.severity == 'high' %}bg-warning text-dark{% elif report.severity == 'medium' %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ report.severity|capitalize }}</span></td>
-                                <td><span class="badge {{ get_report_status_css(report.status) }}">{{ report.status }}</span></td>
-                                <td>
-                                    {% if report.investigator_id %}
-                                        {% for inv in investigators %}
-                                            {% if inv.id == report.investigator_id %}{{ inv.full_name }}{% endif %}
-                                        {% endfor %}
-                                    {% else %}
-                                        <span class="badge bg-secondary">Unassigned</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ format_date(report.created_at) }}</td>
-                                <td>
-                                    <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
-                                    {% if not report.investigator_id %}
-                                    <a href="{{ url_for('admin.assign_investigator', report_id=report.id) }}" class="btn btn-sm btn-outline-warning"><i class="fas fa-user-plus"></i></a>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="alert alert-info"><i class="fas fa-info-circle"></i> No reports found.</div>
-                {% endif %}
+
+        <form method="GET" action="{{ url_for('admin.manage_reports') }}" class="mr-filters">
+            <div class="mr-field">
+                <select name="category" class="form-select">
+                    <option value="">All Categories</option>
+                    <option value="academic_misconduct" {% if filters.get('category') == 'academic_misconduct' %}selected{% endif %}>Academic Misconduct</option>
+                    <option value="financial_misconduct" {% if filters.get('category') == 'financial_misconduct' %}selected{% endif %}>Financial Misconduct</option>
+                    <option value="harassment" {% if filters.get('category') == 'harassment' %}selected{% endif %}>Harassment</option>
+                    <option value="policy_violation" {% if filters.get('category') == 'policy_violation' %}selected{% endif %}>Policy Violation</option>
+                    <option value="ethical_concern" {% if filters.get('category') == 'ethical_concern' %}selected{% endif %}>Ethical Concern</option>
+                    <option value="other" {% if filters.get('category') == 'other' %}selected{% endif %}>Other</option>
+                </select>
             </div>
+
+            <div class="mr-field">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="Received" {% if filters.get('status') == 'Received' %}selected{% endif %}>Received</option>
+                    <option value="Triaged" {% if filters.get('status') == 'Triaged' %}selected{% endif %}>Triaged</option>
+                    <option value="Planning" {% if filters.get('status') == 'Planning' %}selected{% endif %}>Planning</option>
+                    <option value="Investigating" {% if filters.get('status') == 'Investigating' %}selected{% endif %}>Investigating</option>
+                    <option value="Under Review" {% if filters.get('status') == 'Under Review' %}selected{% endif %}>Under Review</option>
+                    <option value="Closed" {% if filters.get('status') == 'Closed' %}selected{% endif %}>Closed</option>
+                </select>
+            </div>
+
+            <div class="mr-field">
+                <select name="severity" class="form-select">
+                    <option value="">All Severities</option>
+                    <option value="low" {% if filters.get('severity') == 'low' %}selected{% endif %}>Low</option>
+                    <option value="medium" {% if filters.get('severity') == 'medium' %}selected{% endif %}>Medium</option>
+                    <option value="high" {% if filters.get('severity') == 'high' %}selected{% endif %}>High</option>
+                    <option value="critical" {% if filters.get('severity') == 'critical' %}selected{% endif %}>Critical</option>
+                </select>
+            </div>
+
+            <div class="mr-field mr-field--search">
+                <input type="text" name="search" class="form-control" placeholder="Search reports..." value="{{ filters.get('search', '') }}">
+                <i class="fas fa-search"></i>
+            </div>
+
+            <button type="submit" class="btn mr-filters__submit">
+                <i class="fas fa-search"></i>
+                <span>Search</span>
+            </button>
+        </form>
+    </section>
+
+    <section class="mr-page__panel mr-page__panel--table">
+        {% if reports %}
+        <div class="table-responsive">
+            <table class="table mr-table">
+                <thead>
+                    <tr>
+                        <th>Reference</th>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Severity</th>
+                        <th>Status</th>
+                        <th>Investigator</th>
+                        <th>Submitted</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports %}
+                    <tr>
+                        <td>
+                            <span class="mr-ref">{{ report.reference_number }}</span>
+                        </td>
+                        <td>{{ report.title }}</td>
+                        <td>{{ get_category_display_name(report.category) }}</td>
+                        <td>
+                            <span class="mr-pill mr-pill--severity-{% if report.severity %}{{ report.severity|lower }}{% else %}low{% endif %}">
+                                {{ report.severity|capitalize }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="mr-pill mr-pill--status-{% if report.status == 'Under Review' %}under-review{% else %}{{ report.status|lower|replace(' ', '-') }}{% endif %}">
+                                {{ report.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if report.investigator_id %}
+                                {% set assigned = namespace(name='') %}
+                                {% for inv in investigators %}
+                                    {% if inv.id == report.investigator_id %}
+                                        {% set assigned.name = inv.full_name %}
+                                    {% endif %}
+                                {% endfor %}
+                                <span class="mr-assignee">{{ assigned.name or 'Assigned' }}</span>
+                            {% else %}
+                                <span class="mr-assignee mr-assignee--muted">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ format_date(report.created_at) }}</td>
+                        <td>
+                            <div class="mr-actions">
+                                <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="mr-action-btn mr-action-btn--blue" title="View report">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+
+                                {% if report.status == 'Received' %}
+                                <form method="POST" action="{{ url_for('admin.update_report_status', report_id=report.id) }}" class="mr-actions__form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="status" value="Triaged">
+                                    <button type="submit" class="mr-action-btn mr-action-btn--cyan" title="Triage report">
+                                        <i class="fas fa-clipboard-check"></i>
+                                    </button>
+                                </form>
+                                {% elif report.status == 'Triaged' and not report.investigator_id %}
+                                <a href="{{ url_for('admin.assign_investigator', report_id=report.id) }}" class="mr-action-btn mr-action-btn--cyan" title="Assign investigator">
+                                    <i class="fas fa-user-plus"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-    </div>
+        {% else %}
+        <div class="mr-empty">
+            <i class="fas fa-info-circle"></i>
+            <span>No reports found.</span>
+        </div>
+        {% endif %}
+    </section>
 </div>
 {% endblock %}

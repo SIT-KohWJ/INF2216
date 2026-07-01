@@ -1,18 +1,69 @@
 {% extends "base.html" %}
 {% block title %}Add Note - SITinform{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white"><h4 class="mb-0"><i class="fas fa-sticky-note"></i> Add Investigation Note</h4></div>
-            <div class="card-body">
-                <p>Report: <code>{{ report.reference_number }}</code> - {{ report.title }}</p>
-                <form method="POST">
+<div class="note-page">
+    <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="note-page__back-link">
+        <i class="fas fa-arrow-left"></i>
+        <span>Back to Report</span>
+    </a>
+
+    <div class="note-page__layout">
+        <aside class="note-page__sidebar">
+            <section class="note-page__report-card">
+                <div class="note-page__report-card-title">
+                    <span class="note-page__report-card-icon"><i class="fas fa-file-alt"></i></span>
+                    <span>Report Information</span>
+                </div>
+
+                <div class="note-page__report-item">
+                    <div class="note-page__report-label">Reference</div>
+                    <div class="note-page__report-reference">{{ report.reference_number }}</div>
+                </div>
+
+                <div class="note-page__report-item">
+                    <div class="note-page__report-label">Title</div>
+                    <div class="note-page__report-value">{{ report.title }}</div>
+                </div>
+
+                <div class="note-page__report-item">
+                    <div class="note-page__report-label">Status</div>
+                    <span class="note-page__status-pill {% if report.status == 'Closed' %}note-page__status-pill--closed{% elif report.status == 'Under Review' %}note-page__status-pill--review{% elif report.status == 'Investigating' %}note-page__status-pill--investigating{% elif report.status == 'Planning' %}note-page__status-pill--planning{% else %}note-page__status-pill--open{% endif %}">
+                        {{ report.status }}
+                    </span>
+                </div>
+            </section>
+        </aside>
+
+        <div class="note-page__main">
+            <section class="note-page__hero">
+                <div class="note-page__hero-icon">
+                    <i class="fas fa-comment-alt"></i>
+                </div>
+                <div>
+                    <h1 class="note-page__title">Add Investigation Note</h1>
+                    <p class="note-page__subtitle">Record notes and observations related to this investigation.</p>
+                </div>
+            </section>
+
+            <section class="note-page__panel">
+                <form method="POST" class="note-form">
                     {{ form.hidden_tag() }}
-                    <div class="mb-3">{{ form.note.label(class="form-label") }} {{ form.note(class="form-control", rows=6) }}</div>
-                    <div class="d-grid">{{ form.submit(class="btn btn-primary") }}</div>
+
+                    <div class="note-form__field">
+                        <label for="{{ form.note.id }}" class="note-form__label">
+                            <span>Note (visible to investigators)</span>
+                            <span class="note-form__required">*</span>
+                        </label>
+                        {{ form.note(class="form-control note-form__textarea", rows=7, placeholder="Enter your note here...") }}
+                        <div class="note-form__help">Provide relevant details, observations, or updates regarding this investigation.</div>
+                    </div>
+
+                    <div class="note-form__footer">
+                        <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="note-form__cancel-btn">Cancel</a>
+                        {{ form.submit(class="btn note-form__submit-btn") }}
+                    </div>
                 </form>
-            </div>
+            </section>
         </div>
     </div>
 </div>
