@@ -286,7 +286,12 @@ body {
     transform: translateY(-50%);
     color: #64748b;
     font-size: 1rem;
-    pointer-events: none;
+    /* Clickable so the JS password show/hide toggle in main.js can fire. */
+    cursor: pointer;
+}
+
+.register-input-icon:hover {
+    color: #1e293b;
 }
 
 .register-help {

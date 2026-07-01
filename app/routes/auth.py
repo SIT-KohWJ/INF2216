@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, make_response, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app import db, limiter
@@ -51,20 +51,41 @@ def login():
         if user:
             # Regenerate session to prevent session-fixation attacks.
             session.clear()
-            login_user(user, remember=form.remember.data)
+            # "Remember Me" here only pre-fills the email next time; it does NOT
+            # keep the user logged in (no long-lived remember cookie), and the
+            # password is never stored anywhere.
+            login_user(user, remember=False)
             # _sid is the revocable session identifier; _session_created_at is
             # the watermark checked against User.sessions_invalidated_at.
             session['_sid'] = str(uuid.uuid4())
             session['_session_created_at'] = datetime.utcnow().isoformat()
 
             if user.role in ['system_admin', 'report_admin']:
-                return redirect(url_for('admin.dashboard'))
+                dest = url_for('admin.dashboard')
             elif user.role == 'investigator':
-                return redirect(url_for('reports.investigator_dashboard'))
+                dest = url_for('reports.investigator_dashboard')
             else:
-                return redirect(url_for('reports.dashboard'))
+                dest = url_for('reports.dashboard')
+            response = make_response(redirect(dest))
+            if form.remember.data:
+                # 30-day, HttpOnly cookie holding only the email address.
+                response.set_cookie(
+                    'remembered_email', form.email.data.lower().strip(),
+                    max_age=30 * 24 * 3600, httponly=True, samesite='Lax',
+                    secure=request.is_secure,
+                )
+            else:
+                response.delete_cookie('remembered_email')
+            return response
         else:
             flash('Invalid email or password.', 'danger')
+
+    # On GET, pre-fill the email (and tick the box) from the remembered cookie.
+    if request.method == 'GET':
+        remembered = request.cookies.get('remembered_email')
+        if remembered:
+            form.email.data = remembered
+            form.remember.data = True
     return render_template('auth/login.html', form=form)
 
 

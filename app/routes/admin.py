@@ -200,9 +200,13 @@ def system_audit_logs():
 def manage_users():
     if current_user.role != 'system_admin':
         abort(403)
-    users = User.query.filter_by(is_active=True).all()
-    suspended_users = User.query.filter_by(is_active=False, deletion_requested=False).all()
-    deletion_requests = User.query.filter_by(deletion_requested=True).all()
+    # Anonymised accounts from an approved deletion (deleted_<id>@deleted.sitinform)
+    # are kept only for report/audit integrity; they are not manageable users, so
+    # exclude them from every list.
+    not_deleted = ~User.email.like('%@deleted.sitinform')
+    users = User.query.filter_by(is_active=True).filter(not_deleted).all()
+    suspended_users = User.query.filter_by(is_active=False, deletion_requested=False).filter(not_deleted).all()
+    deletion_requests = User.query.filter_by(deletion_requested=True).filter(not_deleted).all()
     return render_template('admin/manage_users.html', users=users, suspended_users=suspended_users, deletion_requests=deletion_requests)
 
 
@@ -253,11 +257,18 @@ def reactivate_user(user_id):
     if current_user.role != 'system_admin':
         abort(403)
     user = AuthService.get_user_by_id(user_id)
-    if user:
-        AuthService.reactivate_user(user, current_user)
-        flash('User account reactivated successfully', 'success')
-    else:
+    if not user:
         flash('User not found', 'danger')
+        return redirect(url_for('admin.manage_users'))
+    # An approved deletion permanently anonymises the account (email overwritten
+    # to deleted_<id>@deleted.sitinform, password wiped). Reactivating such an
+    # account only flips is_active but can never restore login, so block it and
+    # tell the admin to advise the user to register a new account.
+    if user.email.endswith('@deleted.sitinform') or not user.password_hash:
+        flash('This account has been permanently deleted and cannot be reactivated. The user must register a new account.', 'danger')
+        return redirect(url_for('admin.manage_users'))
+    AuthService.reactivate_user(user, current_user)
+    flash('User account reactivated successfully', 'success')
     return redirect(url_for('admin.manage_users'))
 
 
