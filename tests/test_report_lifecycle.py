@@ -172,8 +172,8 @@ def test_investigation_actions_blocked_until_plan_exists(app, client):
         follow_redirects=True,
     )
 
-    assert outcome_response.status_code == 200
-    assert b"Complete the investigation plan before adding notes or recommending an outcome" in outcome_response.data
+    assert outcome_response.status_code == 403
+    assert b"Forbidden" in outcome_response.data
 
 
 def test_note_can_be_added_after_plan_exists(app, client):
@@ -223,6 +223,32 @@ def test_updating_outcome_keeps_report_under_review(app, client):
     with app.app_context():
         whistleblower = create_user("wb_outcomeedit@sit.singaporetech.edu.sg", "whistleblower")
         investigator = create_user("inv_outcomeedit@sit.singaporetech.edu.sg", "investigator")
+        report = create_report(
+            whistleblower,
+            investigator=investigator,
+            status="Under Review",
+            outcome="dismissed",
+            outcome_details="Initial recommendation",
+        )
+        create_plan(report, investigator)
+
+    login_as(client, investigator)
+    response = client.post(
+        f"/{report.id}/recommend_outcome",
+        data={"outcome": "referred", "outcome_details": "Escalate for review"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    with app.app_context():
+        refreshed = Report.query.get(report.id)
+        assert refreshed.status == "Under Review"
+        assert refreshed.outcome == "referred"
+
+def test_report_admin_cannot_update_outcome_under_review(app, client):
+    with app.app_context():
+        whistleblower = create_user("wb_outcomeedit@sit.singaporetech.edu.sg", "whistleblower")
+        investigator = create_user("inv_outcomeedit@sit.singaporetech.edu.sg", "investigator")
         report_admin = create_user("admin_outcomeedit@sit.singaporetech.edu.sg", "report_admin")
         report = create_report(
             whistleblower,
@@ -240,12 +266,11 @@ def test_updating_outcome_keeps_report_under_review(app, client):
         follow_redirects=True,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 403
     with app.app_context():
         refreshed = Report.query.get(report.id)
         assert refreshed.status == "Under Review"
-        assert refreshed.outcome == "referred"
-
+        assert refreshed.outcome == "dismissed"
 
 def test_close_requires_under_review_and_then_moves_to_closed(app, client):
     with app.app_context():
@@ -258,8 +283,14 @@ def test_close_requires_under_review_and_then_moves_to_closed(app, client):
     login_as(client, investigator)
     blocked_response = client.post(f"/{report.id}/close", follow_redirects=True)
 
-    assert blocked_response.status_code == 200
-    assert b"Report must be in Under Review status to close" in blocked_response.data
+    assert blocked_response.status_code == 403
+    assert b"Forbidden" in blocked_response.data
+
+    login_as(client, report_admin)
+    status_blocked_response = client.post(f"/{report.id}/close", follow_redirects=True)
+
+    assert status_blocked_response.status_code == 200
+    assert b"Report must be in Under Review status to close" in status_blocked_response.data
 
     with app.app_context():
         refreshed = Report.query.get(report.id)
