@@ -82,8 +82,10 @@ def view_report(report_id):
     history = ReportService.get_report_audit_history(report_id)
     investigation_action_block_reason = ReportService.get_investigation_action_block_reason(report)
     close_block_reason = ReportService.get_close_block_reason(report)
+    can_recommend_outcome = current_user.role == 'investigator' and investigation_action_block_reason is None
+    can_close_report = current_user.role == 'report_admin' and close_block_reason is None
     crypto_service.log_audit_action(action='report_viewed', acting_user=current_user, acting_role=current_user.role, target_type='report', target_id=report.id, details=f'Report {report.reference_number} viewed')
-    return render_template('reports/view.html', report=report, decrypted_data=decrypted_data, evidence=evidence, notes=notes, history=history, can_manage_investigation_actions=investigation_action_block_reason is None, investigation_action_block_reason=investigation_action_block_reason, can_close_report=close_block_reason is None, close_block_reason=close_block_reason)
+    return render_template('reports/view.html', report=report, decrypted_data=decrypted_data, evidence=evidence, notes=notes, history=history, can_manage_investigation_actions=investigation_action_block_reason is None, can_recommend_outcome=can_recommend_outcome, investigation_action_block_reason=investigation_action_block_reason, can_close_report=can_close_report, close_block_reason=close_block_reason)
 
 
 @reports_bp.route('/<report_id>/investigation-plan', methods=['GET', 'POST'])
@@ -177,7 +179,7 @@ def recommend_outcome(report_id):
         if current_user.role == 'investigator':
             return redirect(url_for('reports.investigator_dashboard'))
         return redirect(url_for('admin.manage_reports'))
-    if current_user.role not in ['investigator', 'report_admin']:
+    if current_user.role != 'investigator':
         abort(403)
     block_reason = ReportService.get_investigation_action_block_reason(report)
     if block_reason:
@@ -203,7 +205,7 @@ def close_report(report_id):
         if current_user.role == 'investigator':
             return redirect(url_for('reports.investigator_dashboard'))
         return redirect(url_for('admin.manage_reports'))
-    if current_user.role not in ['investigator', 'report_admin']:
+    if current_user.role != 'report_admin':
         abort(403)
     success, message = ReportService.close_report(report, current_user)
     if success:
