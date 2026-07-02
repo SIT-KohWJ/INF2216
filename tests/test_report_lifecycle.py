@@ -80,6 +80,9 @@ def create_plan(report, investigator):
 
 
 def login_as(client, user):
+    from flask import g, has_app_context
+    if has_app_context():
+        g.pop("_login_user", None)
     with client.session_transaction() as session:
         session["_user_id"] = str(user.id)
         session["_fresh"] = True
