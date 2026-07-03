@@ -146,7 +146,7 @@ class Evidence(db.Model):
     report_id = db.Column(db.String(36), db.ForeignKey('reports.id'), nullable=False)
     original_filename = db.Column(db.String(255), nullable=False)
     stored_filename = db.Column(db.String(255), nullable=False)
-    file_type = db.Column(db.String(32), nullable=False)
+    file_type = db.Column(db.String(128), nullable=False)
     file_size = db.Column(db.Integer, nullable=False)
     encrypted_file_data = db.Column(db.LargeBinary)
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)

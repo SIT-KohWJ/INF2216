@@ -84,10 +84,17 @@ def create_app(config_name=None):
         if not current_user.is_authenticated:
             return
 
+        sid = session.get('_sid')
+        created_at_str = session.get('_session_created_at')
+
+        if not sid or not created_at_str:
+            logout_user()
+            session.clear()
+            return redirect(url_for('auth.login'))
+
         # Gate 1 — explicit per-session revocation (logout, password change on
         # this specific session).
-        sid = session.get('_sid')
-        if sid and RevokedToken.is_token_revoked(sid):
+        if RevokedToken.is_token_revoked(sid):
             logout_user()
             session.clear()
             return redirect(url_for('auth.login'))
@@ -97,8 +104,7 @@ def create_app(config_name=None):
         # concurrent sessions — including ones not caught by gate 1 — are
         # expired).
         invalidated_at = getattr(current_user, 'sessions_invalidated_at', None)
-        created_at_str = session.get('_session_created_at')
-        if invalidated_at and created_at_str:
+        if invalidated_at:
             try:
                 session_created = _dt.fromisoformat(created_at_str)
                 if invalidated_at > session_created:
@@ -106,7 +112,9 @@ def create_app(config_name=None):
                     session.clear()
                     return redirect(url_for('auth.login'))
             except (ValueError, TypeError):
-                pass
+                logout_user()
+                session.clear()
+                return redirect(url_for('auth.login'))
 
     @app.before_request
     def enforce_https():
