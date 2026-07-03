@@ -2,6 +2,7 @@ from app import db
 from app.models import Report, ReportStatusHistory, Evidence, InvestigationNote, InvestigationPlan, Notification
 from app.services.crypto_service import crypto_service
 from app.utils.validators import FileValidator, InputValidator
+from app.services.malware_scan_service import MalwareScanner, MalwareScanError
 from datetime import datetime
 from flask import current_app
 import json
@@ -44,10 +45,24 @@ class ReportService:
             for file in evidence_files:
                 file_content = file.read()
                 file.seek(0)
+                max_file_size = current_app.config.get('MAX_FILE_SIZE', 10 * 1024 * 1024)
+                if len(file_content) > max_file_size:
+                    from werkzeug.utils import secure_filename
+                    safe_name = secure_filename(file.filename)
+                    return None, f"'{safe_name}' exceeds maximum size of {max_file_size // (1024*1024)}MB"
                 if not FileValidator.validate_file_type(file_content, allowed_exts):
                     from werkzeug.utils import secure_filename
                     safe_name = secure_filename(file.filename)
                     return None, f"'{safe_name}' is not a valid file. Only real PDF, DOCX, PNG, and JPG files are accepted."
+                if current_app.config.get('MALWARE_SCAN_ENABLED', True):
+                    from werkzeug.utils import secure_filename
+                    safe_name = secure_filename(file.filename)
+                    try:
+                        is_clean, scan_result = MalwareScanner.scan(file_content)
+                    except MalwareScanError:
+                        return None, f"'{safe_name}' could not be scanned for malware. Please try again shortly."
+                    if not is_clean:
+                        return None, f"'{safe_name}' was rejected: malware detected ({scan_result})."
 
         submitter_hash = crypto_service.generate_user_hash(user.id)
         # Do NOT persist submitter identity (email/name) in the report payload.
@@ -106,11 +121,16 @@ class ReportService:
     def _add_evidence(report_id, file):
         file_content = file.read()
         file_size = len(file_content)
-        max_size = current_app.config.get('MAX_CONTENT_LENGTH', 10 * 1024 * 1024)
+        max_size = current_app.config.get('MAX_FILE_SIZE', 10 * 1024 * 1024)
         if file_size > max_size:
             return False, f"File exceeds maximum size of {max_size // (1024*1024)}MB"
         if not FileValidator.validate_file_type(file_content, current_app.config.get('ALLOWED_EXTENSIONS', {'pdf', 'docx', 'png', 'jpg', 'jpeg'})):
             return False, "File type validation failed."
+        # Malware scanning already happened once in create_report()'s pre-validation
+        # loop, before any DB row for this report/evidence existed — scanning again
+        # here would just double the clamd round-trips (and request latency) for no
+        # extra safety, since a rejection here can no longer prevent anything from
+        # having been created.
         from werkzeug.utils import secure_filename
         original_filename = secure_filename(file.filename)
         stored_filename = f"{uuid.uuid4().hex}_{original_filename}"
@@ -170,6 +190,12 @@ class ReportService:
         if user.role == "whistleblower" and report.user_id != user.id:
             return None, "Access denied"
         if user.role == "investigator" and report.investigator_id != user.id:
+            return None, "Access denied"
+        # system_admin manages the platform/users, not case content — it must
+        # never see report data. Without this, a direct URL to any report_id
+        # or evidence_id bypassed every role check (report_admin and
+        # investigator are scoped above; system_admin fell through unchecked).
+        if user.role == "system_admin":
             return None, "Access denied"
 
         ReportService.attach_display_fields(report)

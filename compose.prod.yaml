@@ -35,16 +35,35 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      clamav:
+        condition: service_started   # not service_healthy — first-boot freshclam download can take minutes; app fails closed per-request until clamd is ready
     environment:
       DATABASE_URL:         postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       SECRET_KEY:           ${SECRET_KEY}
       HMAC_SECRET_KEY:      ${HMAC_SECRET_KEY}
       FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
       FLASK_ENV:            production
+      CLAMD_HOST:           clamav
     expose:
       - "5000"
     networks:
       - backend
+
+  # ── ClamAV malware scanner (B7) ──────────────────────────────────────────────
+  clamav:
+    image: clamav/clamav:stable
+    container_name: sitinform_clamav
+    restart: always
+    volumes:
+      - clamav_data:/var/lib/clamav
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
 
   # ── Nginx reverse proxy ─────────────────────────────────────────────────────
   nginx:
@@ -74,7 +93,7 @@ services:
     environment:
       SPLUNK_START_ARGS: "--accept-license"
       SPLUNK_GENERAL_TERMS: "--accept-sgt-current-at-splunk-com"
-      SPLUNK_PASSWORD: "SITinform@2026"
+      SPLUNK_PASSWORD: ${SPLUNK_PASSWORD}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
@@ -91,3 +110,4 @@ networks:
 volumes:
   postgres_data:
   splunk_data:
+  clamav_data:

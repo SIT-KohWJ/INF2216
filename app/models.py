@@ -38,6 +38,10 @@ class User(UserMixin, db.Model):
         return f'<User {self.email}>'
 
     def set_password(self, password):
+        self.password_hash = User.hash_password(password)
+
+    @staticmethod
+    def hash_password(password):
         try:
             from flask import current_app
             rounds = current_app.config.get('BCRYPT_ROUNDS', 12)
@@ -46,7 +50,7 @@ class User(UserMixin, db.Model):
         password_bytes = password.encode('utf-8')
         salt = bcrypt.gensalt(rounds=rounds)
         hashed = bcrypt.hashpw(password_bytes, salt)
-        self.password_hash = hashed.decode('utf-8')
+        return hashed.decode('utf-8')
 
     def check_password(self, password):
         if not self.password_hash:
@@ -142,7 +146,7 @@ class Evidence(db.Model):
     report_id = db.Column(db.String(36), db.ForeignKey('reports.id'), nullable=False)
     original_filename = db.Column(db.String(255), nullable=False)
     stored_filename = db.Column(db.String(255), nullable=False)
-    file_type = db.Column(db.String(32), nullable=False)
+    file_type = db.Column(db.String(128), nullable=False)
     file_size = db.Column(db.Integer, nullable=False)
     encrypted_file_data = db.Column(db.LargeBinary)
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)

@@ -16,6 +16,7 @@ from flask import Blueprint, flash, redirect, render_template, request, session,
 from app import db, limiter
 from app.forms import OtpVerifyForm
 from app.models import PasswordResetToken, User
+from app.services.auth_service import AuthService
 from app.services.crypto_service import crypto_service
 from app.services.otp_service import OtpService
 
@@ -74,4 +75,47 @@ def verify():
         else:
             flash(message, 'danger')
 
-    return render_template('auth/verify_otp.html', form=form)
+    return render_template('auth/verify_otp.html', form=form, email=email)
+
+
+@otp_bp.route('/verify_registration', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
+def verify_registration():
+    """Step 2 of registration: verify the OTP, then — only on success —
+    create the account from the pending data stashed in session at step 1.
+    A student cannot end up with an account without first proving control
+    of the email address they registered with.
+    """
+    email = session.get('_otp_register_email')
+    pending = session.get('_pending_registration')
+    if not email or not pending or pending.get('email') != email:
+        flash('Please start the registration process again.', 'warning')
+        return redirect(url_for('auth.register'))
+
+    form = OtpVerifyForm()
+    if form.validate_on_submit():
+        otp_input = form.otp.data.strip()
+        success, message = OtpService.verify_otp(
+            email, otp_input, restart_hint="Please register again."
+        )
+
+        if success:
+            user, msg = AuthService.complete_registration(
+                email=pending['email'],
+                password_hash=pending['password_hash'],
+                first_name=pending['first_name'],
+                last_name=pending['last_name'],
+            )
+            session.pop('_otp_register_email', None)
+            session.pop('_pending_registration', None)
+
+            if user:
+                flash('Registration successful! Please log in.', 'success')
+                return redirect(url_for('auth.login'))
+            else:
+                flash(msg, 'danger')
+                return redirect(url_for('auth.register'))
+        else:
+            flash(message, 'danger')
+
+    return render_template('auth/verify_registration_otp.html', form=form, email=email)

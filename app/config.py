@@ -30,8 +30,21 @@ class Config:
     RATELIMIT_DEFAULT = "500 per day;100 per hour"
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
 
-    MAX_CONTENT_LENGTH = 10 * 1024 * 1024
+    # MAX_FILE_SIZE is this app's own per-file cap (checked explicitly in
+    # ReportService). MAX_CONTENT_LENGTH is Flask/Werkzeug's built-in cap on the
+    # ENTIRE request body — these are not the same thing, and reusing one value
+    # for both meant a legitimate multi-file submission (5 files x 10MB each)
+    # could never fit under a 10MB *total* limit. MAX_CONTENT_LENGTH must cover
+    # up to MAX_EVIDENCE_FILES (reports.py) files at MAX_FILE_SIZE each.
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    MAX_CONTENT_LENGTH = 5 * MAX_FILE_SIZE
     ALLOWED_EXTENSIONS = {'pdf', 'docx', 'png', 'jpg', 'jpeg'}
+
+    # Malware scanning (B7) — clamd, reached over the docker network.
+    MALWARE_SCAN_ENABLED = os.environ.get('MALWARE_SCAN_ENABLED', 'true').lower() == 'true'
+    CLAMD_HOST = os.environ.get('CLAMD_HOST', 'clamav')
+    CLAMD_PORT = int(os.environ.get('CLAMD_PORT', 3310))
+    CLAMD_TIMEOUT = int(os.environ.get('CLAMD_TIMEOUT', 10))
 
     # The deploy stack (compose/CI) provides FIELD_ENCRYPTION_KEY; the original
     # SITinform .env used ENCRYPTION_KEY. Accept either so both keep working.
@@ -71,6 +84,7 @@ class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     WTF_CSRF_ENABLED = False
+    MALWARE_SCAN_ENABLED = False  # no clamd container in the test environment
 
 
 class ProductionConfig(Config):
