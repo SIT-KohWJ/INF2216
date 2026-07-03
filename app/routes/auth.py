@@ -225,9 +225,14 @@ def logout_all():
 @auth_bp.route('/delete_account', methods=['GET', 'POST'])
 @login_required
 def delete_account():
-    # FR-W4: visiting this endpoint submits a deletion REQUEST for System Admin
-    # review and deactivates the account immediately, then logs the user out.
-    # It does not delete directly; final deletion is done by a System Admin.
+    # FR-W4: submitting this endpoint (POST only) files a deletion REQUEST for
+    # System Admin review and deactivates the account immediately, then logs
+    # the user out. It does not delete directly; final deletion is done by a
+    # System Admin. GET only renders the confirmation page below — it must
+    # never trigger the deletion itself, since GET requests aren't CSRF-checked.
+    if request.method == 'GET':
+        return render_template('auth/delete_account.html')
+
     success, message = AuthService.request_account_deletion(current_user)
     if success:
         sid = session.get('_sid')

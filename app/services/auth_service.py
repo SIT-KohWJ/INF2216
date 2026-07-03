@@ -254,6 +254,11 @@ class AuthService:
 
     @staticmethod
     def deactivate_user(user, acting_user):
+        # System Admins may suspend a Report Admin (routine account
+        # management) but never a fellow System Admin — peer admins must not
+        # be able to lock each other out.
+        if user.role == 'system_admin':
+            return False, "System Admin accounts cannot suspend each other."
         user.is_active = False
         db.session.commit()
         crypto_service.log_audit_action(
@@ -262,7 +267,7 @@ class AuthService:
             target_type='user', target_id=user.id,
             details='User account suspended',
         )
-        return True
+        return True, "User account suspended successfully."
 
     @staticmethod
     def reactivate_user(user, acting_user):
@@ -287,6 +292,8 @@ class AuthService:
         while the request is pending. Final deletion is performed by a System
         Admin via approve_account_deletion (FR-SA2).
         """
+        if user.role in ('report_admin', 'system_admin'):
+            return False, "Report Admin and System Admin accounts cannot request deletion."
         if user.deletion_requested:
             return False, "A deletion request is already pending for this account."
         user.deletion_requested = True
@@ -306,6 +313,8 @@ class AuthService:
         anonymous via submitter_hash (A6, NFR1). Reports and audit logs are
         preserved; only credentials and profile data are removed.
         """
+        if user.role in ('report_admin', 'system_admin'):
+            return False, "Report Admin and System Admin accounts cannot be deleted."
         if not user.deletion_requested:
             return False, "This account has no pending deletion request."
         user_role = user.role
