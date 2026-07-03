@@ -2,7 +2,7 @@ import re
 
 from app import db
 from app.models import User, PasswordResetToken
-from app.services.crypto_service import crypto_service
+from app.securityfeature.audit import AuditService
 
 # Characters accepted as "special" for the password complexity policy.
 _SPECIAL_CHAR_RE = re.compile(r'[!@#$%^&*()\-_=+\[\]{}|;:\'",.<>?/\\`~]')
@@ -65,7 +65,7 @@ class AuthService:
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
-        crypto_service.log_audit_action(
+        AuditService.log(
             action='user_registration',
             acting_user=user, acting_role=user.role,
             target_type='user', target_id=user.id,
@@ -95,7 +95,7 @@ class AuthService:
         if user and user.is_locked():
             # Run the password check anyway to prevent timing oracle.
             user.check_password(password)
-            crypto_service.log_audit_action(
+            AuditService.log(
                 action='login_failed_account_locked',
                 acting_user=user, acting_role=user.role,
                 details='Login attempt while account locked',
@@ -108,7 +108,7 @@ class AuthService:
                 if user.is_active:
                     user.reset_failed_login()
                     db.session.commit()
-                    crypto_service.log_audit_action(
+                    AuditService.log(
                         action='user_login',
                         acting_user=user, acting_role=user.role,
                         details='User logged in',
@@ -126,7 +126,7 @@ class AuthService:
             # User does not exist — perform dummy bcrypt check to equalise timing.
             User.dummy_check(password)
 
-        crypto_service.log_audit_action(
+        AuditService.log(
             action='login_failed',
             acting_user=user, acting_role='anonymous',
             details='Failed login attempt',
@@ -150,7 +150,7 @@ class AuthService:
         user.set_password(new_password)
         user.invalidate_all_sessions()
         db.session.commit()
-        crypto_service.log_audit_action(
+        AuditService.log(
             action='password_change',
             acting_user=user, acting_role=user.role,
             details='User changed password; all sessions invalidated',
@@ -182,7 +182,7 @@ class AuthService:
         user.invalidate_all_sessions()
         db.session.commit()
 
-        crypto_service.log_audit_action(
+        AuditService.log(
             action='password_reset_completed',
             acting_user=user, acting_role=user.role,
             details='Password reset via OTP-gated token; all sessions invalidated',
@@ -201,7 +201,7 @@ class AuthService:
     def deactivate_user(user, acting_user):
         user.is_active = False
         db.session.commit()
-        crypto_service.log_audit_action(
+        AuditService.log(
             action='user_deactivation',
             acting_user=acting_user, acting_role=acting_user.role,
             target_type='user', target_id=user.id,
@@ -215,7 +215,7 @@ class AuthService:
         user.failed_login_attempts = 0
         user.locked_until = None
         db.session.commit()
-        crypto_service.log_audit_action(
+        AuditService.log(
             action='user_reactivation',
             acting_user=acting_user, acting_role=acting_user.role,
             target_type='user', target_id=user.id,
@@ -233,7 +233,7 @@ class AuthService:
         user.is_active = False
         user.invalidate_all_sessions()
         db.session.commit()
-        crypto_service.log_audit_action(
+        AuditService.log(
             action='account_deletion',
             acting_user=None, acting_role=user_role,
             target_type='user', target_id=user.id,
@@ -264,7 +264,7 @@ class AuthService:
         old_role = user.role
         user.role = new_role
         db.session.commit()
-        crypto_service.log_audit_action(
+        AuditService.log(
             action='role_change',
             acting_user=acting_user, acting_role=acting_user.role,
             target_type='user', target_id=user.id,

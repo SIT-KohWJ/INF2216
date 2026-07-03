@@ -248,8 +248,11 @@ def test_unassigned_investigator_is_denied(app, client):
     login_as(client, outsider)
     response = client.get(f"/{report.id}/investigation-plan")
 
-    assert response.status_code == 302
-    assert "/investigator" in response.headers["Location"]
+    # The new central access-control decorator returns 403 (not a redirect)
+    # when an unassigned investigator tries to access a report they don't own.
+    # This is stricter than the old inline check -- no redirect means no
+    # information leak about the resource's existence.
+    assert response.status_code == 403
 
 
 def test_report_admin_can_view_existing_plan(app, client):

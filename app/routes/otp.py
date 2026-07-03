@@ -11,11 +11,12 @@ trusts the token but never creates it itself.
 """
 from datetime import datetime, timedelta
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
 
 from app import db, limiter
 from app.forms import OtpVerifyForm
 from app.models import PasswordResetToken, User
+from app.securityfeature.audit import AuditService
 from app.services.crypto_service import crypto_service
 from app.services.otp_service import OtpService
 
@@ -54,12 +55,13 @@ def verify():
                 db.session.add(reset_token)
                 db.session.commit()
 
-                crypto_service.log_audit_action(
+                AuditService.log(
                     action='otp_verified',
                     acting_user=user,
                     acting_role=user.role,
                     details='OTP verified; time-limited password-reset token issued',
                     ip_address=request.remote_addr,
+                    request_id=g.get('request_id'),
                 )
 
                 session.pop('_otp_email', None)

@@ -1,5 +1,6 @@
 from app import db
 from app.models import Report, ReportStatusHistory, Evidence, InvestigationNote, InvestigationPlan, Notification
+from app.securityfeature.audit import AuditService
 from app.services.crypto_service import crypto_service
 from app.utils.validators import FileValidator, InputValidator
 from datetime import datetime
@@ -80,17 +81,17 @@ class ReportService:
                     result, msg = ReportService._add_evidence(report.id, file)
                     if not result:
                         db.session.rollback()
-                        crypto_service.log_audit_action(
+                        AuditService.log(
                             action='evidence_upload_failed',
                             acting_user=user,
                             acting_role=user.role,
                             target_type='report',
                             target_id=report.id,
-                            details=f'Evidence upload rejected: {msg}'
+                            details=f'Evidence upload rejected'
                         )
                         return None, f"Report not submitted. Evidence upload failed: {msg}"
 
-        crypto_service.log_audit_action(action='report_submission', acting_user=user, acting_role=user.role, target_type='report', target_id=report.id, details=f'New report submitted with reference: {reference_number}')
+        AuditService.log(action='report_submission', acting_user=user, acting_role=user.role, target_type='report', target_id=report.id, details=f'New report submitted')
         return report, f"Report submitted successfully. Your reference number is: {reference_number}"
 
     @staticmethod
@@ -141,8 +142,17 @@ class ReportService:
 
     @staticmethod
     def get_all_reports_for_investigator_dashboard():
-        reports = Report.query.all()
-        return ReportService.attach_display_fields_to_reports(reports)
+        """Return all reports for the investigator's situational-awareness table.
+
+        SECURITY: we deliberately do NOT call attach_display_fields() here.
+        The investigator dashboard's "All Cases" table renders only
+        reference_number / category / status / assigned_investigator -- never
+        the decrypted title. By not decrypting, we ensure a future template
+        change can't accidentally leak titles of reports the investigator
+        isn't assigned to. (Their own assigned reports go through
+        get_reports_for_user() which DOES decrypt, since they're authorised.)
+        """
+        return Report.query.all()
 
     @staticmethod
     def get_reports_for_user(user):
@@ -179,7 +189,7 @@ class ReportService:
         report.severity = new_severity
         report.updated_at = datetime.utcnow()
         db.session.commit()
-        crypto_service.log_audit_action(action='status_update', acting_user=acting_user, acting_role=acting_user.role, target_type='report', target_id=report.id, details=f'Severity changed from {old_severity} to {new_severity}')
+        AuditService.log(action='severity_update', acting_user=acting_user, acting_role=acting_user.role, target_type='report', target_id=report.id, details=f'Severity changed from {old_severity} to {new_severity}')
         return True, f"Severity updated to {new_severity}"
 
     @staticmethod
@@ -194,7 +204,7 @@ class ReportService:
         status_history = ReportStatusHistory(report_id=report.id, old_status=old_status, new_status=new_status, changed_by_role=acting_user.role)
         db.session.add(status_history)
         db.session.commit()
-        crypto_service.log_audit_action(action='status_update', acting_user=acting_user, acting_role=acting_user.role, target_type='report', target_id=report.id, details=f'Status changed from {old_status} to {new_status}')
+        AuditService.log(action='status_update', acting_user=acting_user, acting_role=acting_user.role, target_type='report', target_id=report.id, details=f'Status changed from {old_status} to {new_status}')
         if report.user_id:
             notification = Notification(user_id=report.user_id, message=f'Your report ({report.reference_number}) status has been updated to: {new_status}', notification_type='status_change', related_report_id=report.id)
             db.session.add(notification)
@@ -211,7 +221,7 @@ class ReportService:
         if not success:
             db.session.rollback()
             return False, message
-        crypto_service.log_audit_action(action='investigator_assignment', acting_user=acting_user, acting_role=acting_user.role, target_type='report', target_id=report.id, details='Investigator assigned to report')
+        AuditService.log(action='investigator_assignment', acting_user=acting_user, acting_role=acting_user.role, target_type='report', target_id=report.id, details='Investigator assigned to report')
         if report.user_id:
             notification = Notification(user_id=report.user_id, message=f'An investigator has been assigned to your report ({report.reference_number}).', notification_type='investigator_assigned', related_report_id=report.id)
             db.session.add(notification)
@@ -235,7 +245,7 @@ class ReportService:
             success, message = ReportService.update_report_status(report, 'Under Review', acting_user)
             if not success:
                 return False, message
-        crypto_service.log_audit_action(action='outcome_recommended', acting_user=acting_user, acting_role=acting_user.role, target_type='report', target_id=report.id, details=f'Outcome recommended: {outcome}')
+        AuditService.log(action='outcome_recommended', acting_user=acting_user, acting_role=acting_user.role, target_type='report', target_id=report.id, details=f'Outcome recommended: {outcome}')
         return True, "Outcome recommended successfully"
 
     @staticmethod
@@ -254,7 +264,7 @@ class ReportService:
         investigation_note = InvestigationNote(report_id=report.id, investigator_id=investigator.id, note=note)
         db.session.add(investigation_note)
         db.session.commit()
-        crypto_service.log_audit_action(action='investigation_note', acting_user=investigator, acting_role=investigator.role, target_type='report', target_id=report.id, details='Investigation note added')
+        AuditService.log(action='investigation_note', acting_user=investigator, acting_role=investigator.role, target_type='report', target_id=report.id, details='Investigation note added')
         return investigation_note, "Note added successfully"
 
     @staticmethod
@@ -362,8 +372,10 @@ class ReportService:
             if not success:
                 db.session.rollback()
                 return None, status_message
+            AuditService.log(action='investigation_plan_created', acting_user=investigator, acting_role=investigator.role, target_type='report', target_id=report.id, details='Investigation plan created')
         else:
             db.session.commit()
+            AuditService.log(action='investigation_plan_updated', acting_user=investigator, acting_role=investigator.role, target_type='report', target_id=report.id, details='Investigation plan updated')
         return plan, message
 
     @staticmethod

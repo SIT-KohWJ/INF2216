@@ -1,13 +1,13 @@
 from datetime import datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app import db, limiter
 from app.forms import LoginForm, PasswordChangeForm, PasswordResetForm, PasswordResetRequestForm, RegistrationForm
 from app.models import RevokedToken
+from app.securityfeature.audit import AuditService
 from app.services.auth_service import AuthService
-from app.services.crypto_service import crypto_service
 from app.services.otp_service import OtpService
 import uuid
 
@@ -75,11 +75,12 @@ def logout():
     if sid:
         db.session.add(RevokedToken(token_jti=sid, reason='logout'))
         db.session.commit()
-    crypto_service.log_audit_action(
+    AuditService.log(
         action='user_logout',
         acting_user=current_user, acting_role=current_user.role,
         details='User logged out',
         ip_address=request.remote_addr,
+        request_id=g.get('request_id'),
     )
     logout_user()
     session.clear()

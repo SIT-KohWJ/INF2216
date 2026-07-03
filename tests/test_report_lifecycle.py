@@ -289,15 +289,17 @@ def test_api_stats_reflect_new_statuses(app, client):
     response = client.get("/api/stats")
 
     assert response.status_code == 200
-    assert response.get_json() == {
-        "total": 6,
-        "received": 1,
-        "triaged": 1,
-        "planning": 1,
-        "investigating": 1,
-        "under_review": 1,
-        "closed": 1,
-    }
+    data = response.get_json()
+    # The /api/stats endpoint is now role-aware. report_admin sees system-wide
+    # stats under a `by_status` key (plus by_category and investigator_load).
+    assert data['scope'] == 'system_reports'
+    assert data['by_status']['total'] == 6
+    assert data['by_status']['received'] == 1
+    assert data['by_status']['triaged'] == 1
+    assert data['by_status']['planning'] == 1
+    assert data['by_status']['investigating'] == 1
+    assert data['by_status']['under_review'] == 1
+    assert data['by_status']['closed'] == 1
 
 
 def test_status_normalization_updates_legacy_rows(app):

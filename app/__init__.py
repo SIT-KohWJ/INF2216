@@ -74,6 +74,12 @@ def create_app(config_name=None):
         crypto_service=_crypto_service,
     )
 
+    # ── Per-request middleware ────────────────────────────────────────────
+    # Request-ID + security headers MUST run before everything else so the
+    # error handlers can read `g.request_id`.
+    from app.securityfeature.error_handlers import register_request_context
+    register_request_context(app)
+
     @app.before_request
     def check_session_revoked():
         from datetime import datetime as _dt
@@ -84,7 +90,7 @@ def create_app(config_name=None):
         if not current_user.is_authenticated:
             return
 
-        # Gate 1 — explicit per-session revocation (logout, password change on
+        # Gate 1 -- explicit per-session revocation (logout, password change on
         # this specific session).
         sid = session.get('_sid')
         if sid and RevokedToken.is_token_revoked(sid):
@@ -92,9 +98,9 @@ def create_app(config_name=None):
             session.clear()
             return redirect(url_for('auth.login'))
 
-        # Gate 2 — global session invalidation watermark (password reset or
+        # Gate 2 -- global session invalidation watermark (password reset or
         # password change which bumps User.sessions_invalidated_at so that ALL
-        # concurrent sessions — including ones not caught by gate 1 — are
+        # concurrent sessions -- including ones not caught by gate 1 -- are
         # expired).
         invalidated_at = getattr(current_user, 'sessions_invalidated_at', None)
         created_at_str = session.get('_session_created_at')
@@ -115,27 +121,19 @@ def create_app(config_name=None):
             if not request.is_secure and request.headers.get('X-Forwarded-Proto') != 'https':
                 return redirect(request.url.replace('http://', 'https://'), code=301)
 
-    @app.errorhandler(404)
-    def not_found(e):
-        from flask import render_template
-        return render_template('errors/404.html'), 404
-
-    @app.errorhandler(403)
-    def forbidden(e):
-        from flask import render_template
-        return render_template('errors/403.html'), 403
-
-    @app.errorhandler(500)
-    def internal_error(e):
-        from flask import render_template
-        return render_template('errors/500.html'), 500
+    # ── Structured error handlers (no stack-trace leaks) ──────────────────
+    from app.securityfeature.error_handlers import register_error_handlers
+    register_error_handlers(app)
 
     @app.errorhandler(429)
     def ratelimit_handler(e):
-        from flask import flash, redirect, url_for
+        from flask import flash, redirect, url_for, jsonify, g, request
+        if request.path.startswith('/api/'):
+            return jsonify({'error': 'rate_limited',
+                            'request_id': g.get('request_id', '-')}), 429
         flash('Too many requests. Please slow down and try again later.', 'warning')
-        # Never redirect to request.referrer — if the rate-limited URL IS the
-        # referrer, that creates an infinite redirect loop.
+        # Never redirect to request.referrer -- if the rate-limited URL IS
+        # the referrer, that creates an infinite redirect loop.
         return redirect(url_for('auth.login'))
 
     @app.get('/healthz')
@@ -144,6 +142,12 @@ def create_app(config_name=None):
 
     with app.app_context():
         db.create_all()
+        # Audit-log append-only guard: blocks UPDATE/DELETE on audit_logs at
+        # the ORM layer so the guarantee is testable on SQLite (production
+        # also has the PostgreSQL trigger from scripts/init.sql).
+        from app.securityfeature.error_handlers import register_audit_append_only_guard
+        register_audit_append_only_guard()
+
         from app.services.report_service import ReportService
         ReportService.migrate_investigation_plan_incident_when_column()
         ReportService.normalize_report_statuses()
