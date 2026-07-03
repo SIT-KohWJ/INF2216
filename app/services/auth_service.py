@@ -76,6 +76,58 @@ class AuthService:
         )
         return user, "Registration successful"
 
+    @staticmethod
+    def validate_registration(email, password, first_name, last_name):
+        """Pre-check registration input WITHOUT creating the account.
+
+        Used as the gate before an OTP is sent, so a self-service signup only
+        reaches the OTP step once the email/password are already known-valid.
+
+        Deliberately does NOT check for a duplicate email here: doing so would
+        let an attacker learn whether an @singaporetech.edu.sg address is
+        already registered just from whether the response proceeds to the OTP
+        step. That check happens later, inside OtpService.initiate_for_registration
+        and again in complete_registration, where it only affects whether an
+        email is actually sent/the account actually created — never the HTTP
+        response the caller sees.
+        """
+        email = email.lower().strip()
+        if not AuthService.validate_email(email):
+            return False, "Invalid email. Must use an @singaporetech.edu.sg or @sit.singaporetech.edu.sg address."
+
+        valid, msg = AuthService.validate_password(password)
+        if not valid:
+            return False, msg
+
+        return True, ""
+
+    @staticmethod
+    def complete_registration(email, password_hash, first_name, last_name, role='whistleblower'):
+        """Create the account after registration OTP verification.
+
+        Takes an already-hashed password (computed at the point the user
+        submitted the form, before the OTP round-trip) rather than plaintext,
+        so the plaintext password never has to be carried across the OTP step.
+        Re-checks for a duplicate email to close the race between the OTP
+        being sent and verified.
+        """
+        email = email.lower().strip()
+        existing = User.query.filter_by(email=email).first()
+        if existing:
+            return None, "Unable to complete registration. Please check your details and try again."
+
+        user = User(email=email, first_name=first_name, last_name=last_name, role=role)
+        user.password_hash = password_hash
+        db.session.add(user)
+        db.session.commit()
+        crypto_service.log_audit_action(
+            action='user_registration',
+            acting_user=user, acting_role=user.role,
+            target_type='user', target_id=user.id,
+            details=f'New user registered with role: {user.role} (email OTP-verified)',
+        )
+        return user, "Registration successful"
+
     # ------------------------------------------------------------------
     # Authentication (login)
     # ------------------------------------------------------------------

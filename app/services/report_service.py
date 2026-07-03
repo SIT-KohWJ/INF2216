@@ -171,6 +171,12 @@ class ReportService:
             return None, "Access denied"
         if user.role == "investigator" and report.investigator_id != user.id:
             return None, "Access denied"
+        # system_admin manages the platform/users, not case content — it must
+        # never see report data. Without this, a direct URL to any report_id
+        # or evidence_id bypassed every role check (report_admin and
+        # investigator are scoped above; system_admin fell through unchecked).
+        if user.role == "system_admin":
+            return None, "Access denied"
 
         ReportService.attach_display_fields(report)
         return report, None

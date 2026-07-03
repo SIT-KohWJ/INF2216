@@ -5,7 +5,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 
 from app import db, limiter
 from app.forms import LoginForm, PasswordChangeForm, PasswordResetForm, PasswordResetRequestForm, RegistrationForm
-from app.models import RevokedToken
+from app.models import RevokedToken, User
 from app.services.auth_service import AuthService
 from app.services.crypto_service import crypto_service
 from app.services.otp_service import OtpService
@@ -21,15 +21,32 @@ def register():
         return redirect(url_for('reports.dashboard'))
     form = RegistrationForm()
     if form.validate_on_submit():
-        user, message = AuthService.register_user(
-            email=form.email.data,
+        email = form.email.data.lower().strip()
+        first_name = form.first_name.data.strip()
+        last_name = form.last_name.data.strip()
+        valid, message = AuthService.validate_registration(
+            email=email,
             password=form.password.data,
-            first_name=form.first_name.data,
-            last_name=form.last_name.data,
+            first_name=first_name,
+            last_name=last_name,
         )
-        if user:
-            flash('Registration successful! Please log in.', 'success')
-            return redirect(url_for('auth.login'))
+        if valid:
+            # Account is not created yet — only after the OTP below is verified.
+            # The password is hashed now so the plaintext never has to be
+            # carried across the OTP round-trip.
+            session['_pending_registration'] = {
+                'email': email,
+                'first_name': first_name,
+                'last_name': last_name,
+                'password_hash': User.hash_password(form.password.data),
+            }
+            session['_otp_register_email'] = email
+            OtpService.initiate_for_registration(email, first_name)
+            # Non-enumerating: identical message whether or not this email is
+            # already registered — only OtpService decides whether an OTP is
+            # actually sent.
+            flash('If this email is available for registration, a one-time password has been sent to it.', 'info')
+            return redirect(url_for('otp.verify_registration'))
         else:
             flash(message, 'danger')
     return render_template('auth/register.html', form=form)

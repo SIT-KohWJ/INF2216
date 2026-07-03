@@ -52,12 +52,17 @@ class OtpService:
         return otp
 
     @staticmethod
-    def verify_otp(email: str, otp: str) -> tuple:
+    def verify_otp(email: str, otp: str, restart_hint: str = "Please request a new password reset.") -> tuple:
         """Verify *otp* for *email*.  Returns (success: bool, message: str).
 
         Atomically increments the attempt counter before checking the hash so
         that concurrent requests can never exceed MAX_ATTEMPTS even without
         row-level locking.
+
+        *restart_hint* is appended to restart-needed failures so callers other
+        than password reset (e.g. registration) can point the user back to
+        their own flow instead of a "request a new password reset" message
+        that would make no sense there.
         """
         email = email.lower().strip()
         max_attempts = current_app.config.get('OTP_MAX_ATTEMPTS', 5)
@@ -70,16 +75,16 @@ class OtpService:
         )
 
         if not record:
-            return False, "No OTP request found. Please request a new password reset."
+            return False, f"No OTP request found. {restart_hint}"
 
         if record.is_expired:
-            return False, "OTP has expired. Please request a new password reset."
+            return False, f"OTP has expired. {restart_hint}"
 
         if record.verified:
             return False, "This OTP has already been used."
 
         if record.attempts >= max_attempts:
-            return False, "Too many failed attempts. Please request a new password reset."
+            return False, f"Too many failed attempts. {restart_hint}"
 
         # Increment BEFORE comparing — prevents race-condition bypass.
         record.attempts += 1
@@ -94,7 +99,7 @@ class OtpService:
         remaining = max_attempts - record.attempts
         if remaining > 0:
             return False, f"Invalid OTP. {remaining} attempt(s) remaining."
-        return False, "Too many failed attempts. Please request a new password reset."
+        return False, f"Too many failed attempts. {restart_hint}"
 
     @staticmethod
     def initiate_for_email(email: str) -> None:
@@ -115,6 +120,31 @@ class OtpService:
             if not sent:
                 current_app.logger.error(
                     "OTP email delivery failed; SMTP may be misconfigured"
+                )
+
+    @staticmethod
+    def initiate_for_registration(email: str, first_name: str = '') -> None:
+        """Top-level call from the registration route.
+
+        Creates an OTP record regardless of whether the email is already
+        registered, so the route's response is identical either way — the
+        OTP is only actually emailed when the address is NOT already taken.
+        This mirrors initiate_for_email()'s non-enumeration design (just with
+        the existence check inverted), so a candidate email's registration
+        status can't be inferred from the registration response.
+        """
+        from app.models import User
+        from app.services.email_service import EmailService
+
+        email = email.lower().strip()
+        otp = OtpService.create_otp_for_email(email)
+
+        existing = User.query.filter_by(email=email).first()
+        if not existing:
+            sent = EmailService.send_registration_otp_email(email, otp, first_name)
+            if not sent:
+                current_app.logger.error(
+                    "Registration OTP email delivery failed; SMTP may be misconfigured"
                 )
 
     @staticmethod

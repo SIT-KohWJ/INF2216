@@ -38,6 +38,10 @@ class User(UserMixin, db.Model):
         return f'<User {self.email}>'
 
     def set_password(self, password):
+        self.password_hash = User.hash_password(password)
+
+    @staticmethod
+    def hash_password(password):
         try:
             from flask import current_app
             rounds = current_app.config.get('BCRYPT_ROUNDS', 12)
@@ -46,7 +50,7 @@ class User(UserMixin, db.Model):
         password_bytes = password.encode('utf-8')
         salt = bcrypt.gensalt(rounds=rounds)
         hashed = bcrypt.hashpw(password_bytes, salt)
-        self.password_hash = hashed.decode('utf-8')
+        return hashed.decode('utf-8')
 
     def check_password(self, password):
         if not self.password_hash:
