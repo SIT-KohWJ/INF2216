@@ -118,6 +118,26 @@ class OtpService:
                 )
 
     @staticmethod
+    def initiate_login_2fa(user) -> None:
+        """Second factor at login.
+
+        Called only AFTER the password has been verified for an active account,
+        so — unlike initiate_for_email — the account is known to exist and there
+        is no enumeration concern here. Creates a fresh OTP and emails the
+        login-specific message. Failure to send is logged; the caller decides
+        how to surface it.
+        """
+        from app.services.email_service import EmailService
+
+        otp = OtpService.create_otp_for_email(user.email)
+        sent = EmailService.send_login_otp_email(user.email, otp, user.first_name)
+        if not sent:
+            current_app.logger.error(
+                "Login 2FA email delivery failed; SMTP may be misconfigured"
+            )
+        return sent
+
+    @staticmethod
     def cleanup_expired() -> int:
         """Delete expired OTP records. Returns the number of rows removed."""
         deleted = OtpToken.query.filter(OtpToken.expires_at < datetime.utcnow()).delete()
