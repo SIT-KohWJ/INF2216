@@ -80,6 +80,8 @@ def create_plan(report, investigator):
 
 
 def login_as(client, user):
+    import uuid
+    from datetime import datetime
     from flask import g, has_app_context
     if has_app_context():
         g.pop("_login_user", None)
@@ -87,6 +89,8 @@ def login_as(client, user):
         session.clear()
         session["_user_id"] = str(user.id)
         session["_fresh"] = True
+        session["_sid"] = str(uuid.uuid4())
+        session["_session_created_at"] = datetime.utcnow().isoformat()
 
 
 def test_report_admin_can_triage_report(app, client):

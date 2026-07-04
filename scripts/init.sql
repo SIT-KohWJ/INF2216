@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS evidence (
     report_id           VARCHAR(36)  NOT NULL REFERENCES reports (id) ON DELETE CASCADE,
     original_filename   VARCHAR(255) NOT NULL,
     stored_filename     VARCHAR(255) NOT NULL,
-    file_type           VARCHAR(32)  NOT NULL,
+    file_type           VARCHAR(128) NOT NULL,
     file_size           INTEGER      NOT NULL,
     encrypted_file_data BYTEA,                              -- AES-256-GCM ciphertext of the file bytes
     uploaded_at         TIMESTAMP    NOT NULL DEFAULT now()

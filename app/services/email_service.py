@@ -60,6 +60,16 @@ class EmailService:
             f"This code is valid for {minutes} minute(s) and can be used only once.\n\n"
             f"If this wasn't you, do NOT share this code. Your account is still "
             f"protected by your password, but you should change it as a precaution.\n\n"
+    def send_registration_otp_email(cls, to_email: str, otp: str, first_name: str = '') -> bool:
+        expiry_seconds = current_app.config.get('OTP_EXPIRY_SECONDS', 30)
+        subject = "SITinform — Verify Your Email to Complete Registration"
+        body = (
+            f"Hello {first_name or 'there'},\n\n"
+            f"Your one-time password (OTP) to verify your email and complete your "
+            f"SITinform registration is:\n\n"
+            f"    {otp}\n\n"
+            f"This OTP is valid for {expiry_seconds} seconds and can be used only once.\n\n"
+            f"If you did not request to register for SITinform, please ignore this email.\n\n"
             f"SITinform Security Team\n"
             f"Singapore Institute of Technology"
         )
@@ -84,5 +94,5 @@ class EmailService:
             cls._mail.send(msg)
             return True
         except Exception as exc:
-            current_app.logger.error("Failed to send login OTP email: %s", exc)
+            current_app.logger.error("Failed to send OTP to email: %s", exc)
             return False

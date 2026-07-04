@@ -19,6 +19,11 @@
                     A 6-digit one-time password was sent to
                     <span class="auth-highlight">{{ email }}</span>.
                     It is valid for <span class="auth-highlight">5 minutes</span> and can only be used once.
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    A one-time password was sent to
+                    <strong>{{ email }}</strong>.
+                    It is valid for <strong>5 minutes</strong> and can only be used once.
                 </p>
 
                 <form method="POST" autocomplete="off" novalidate>
@@ -35,6 +40,13 @@
                         {% if form.otp.errors %}
                         <div class="invalid-feedback d-block">{{ form.otp.errors[0] }}</div>
                         {% endif %}
+                    <div class="mb-3">
+                        {{ form.otp.label(class="form-label") }}
+                        {{ form.otp(class="form-control form-control-lg text-center", placeholder="Enter code",
+                                    autofocus=true) }}
+                        {% for error in form.otp.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
                     </div>
 
                     <div class="d-grid">

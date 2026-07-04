@@ -5,7 +5,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 
 from app import db, limiter
 from app.forms import LoginForm, LoginOtpForm, PasswordChangeForm, PasswordResetForm, PasswordResetRequestForm, RegistrationForm
-from app.models import RevokedToken, User
+from app.models import RevokedToken, User, User
 from app.services.auth_service import AuthService
 from app.services.crypto_service import crypto_service
 from app.services.otp_service import OtpService
@@ -64,15 +64,32 @@ def register():
         return redirect(url_for('reports.dashboard'))
     form = RegistrationForm()
     if form.validate_on_submit():
-        user, message = AuthService.register_user(
-            email=form.email.data,
+        email = form.email.data.lower().strip()
+        first_name = form.first_name.data.strip()
+        last_name = form.last_name.data.strip()
+        valid, message = AuthService.validate_registration(
+            email=email,
             password=form.password.data,
-            first_name=form.first_name.data,
-            last_name=form.last_name.data,
+            first_name=first_name,
+            last_name=last_name,
         )
-        if user:
-            flash('Registration successful! Please log in.', 'success')
-            return redirect(url_for('auth.login'))
+        if valid:
+            # Account is not created yet — only after the OTP below is verified.
+            # The password is hashed now so the plaintext never has to be
+            # carried across the OTP round-trip.
+            session['_pending_registration'] = {
+                'email': email,
+                'first_name': first_name,
+                'last_name': last_name,
+                'password_hash': User.hash_password(form.password.data),
+            }
+            session['_otp_register_email'] = email
+            OtpService.initiate_for_registration(email, first_name)
+            # Non-enumerating: identical message whether or not this email is
+            # already registered — only OtpService decides whether an OTP is
+            # actually sent.
+            flash('If this email is available for registration, a one-time password has been sent to it.', 'info')
+            return redirect(url_for('otp.verify_registration'))
         else:
             flash(message, 'danger')
     return render_template('auth/register.html', form=form)
@@ -202,7 +219,167 @@ def login_resend():
     return redirect(url_for('auth.login_verify'))
 
 
-@auth_bp.route('/logout')
+@auth_bp.route('/login/verify', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
+def login_verify():
+    """Second step of login: verify the emailed 2FA code, then sign in.
+
+    Reachable only after login() has verified the password and stashed the
+    pending user in the session. The actual authenticated session is created
+    here (via _establish_session) and nowhere else on the 2FA path.
+    """
+    if current_user.is_authenticated:
+        return redirect(_dest_for(current_user))
+
+    user_id = session.get('_2fa_user_id')
+    started_at = session.get('_2fa_started_at')
+    if not user_id or not started_at:
+        flash('Please log in first.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    # Enforce the pending-login window independently of the OTP expiry.
+    try:
+        started = datetime.fromisoformat(started_at)
+    except (TypeError, ValueError):
+        started = None
+    if started is None or (datetime.utcnow() - started).total_seconds() > _TWOFA_WINDOW_SECONDS:
+        session.clear()
+        flash('Your login session timed out. Please sign in again.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    user = User.query.filter_by(id=user_id, is_active=True).first()
+    if not user:
+        session.clear()
+        flash('Please log in again.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    form = LoginOtpForm()
+    if form.validate_on_submit():
+        success, message = OtpService.verify_otp(user.email, form.otp.data.strip())
+        if success:
+            remember_email = session.get('_2fa_remember_email')
+            crypto_service.log_audit_action(
+                action='user_login',
+                acting_user=user, acting_role=user.role,
+                details='User logged in (password + email 2FA)',
+                ip_address=request.remote_addr,
+            )
+            # _establish_session clears the session (dropping the _2fa_* keys)
+            # before creating the authenticated one.
+            return _establish_session(user, remember_email)
+        else:
+            crypto_service.log_audit_action(
+                action='login_2fa_failed',
+                acting_user=user, acting_role=user.role,
+                details='Incorrect or expired 2FA code at login',
+                ip_address=request.remote_addr,
+            )
+            flash(message, 'danger')
+
+    # Mask the email in the UI so a shoulder-surfer can't read the full address.
+    local, _, domain = user.email.partition('@')
+    masked_email = (local[:2] + '***@' + domain) if len(local) > 2 else ('***@' + domain)
+    return render_template('auth/login_verify.html', form=form, masked_email=masked_email)
+
+
+@auth_bp.route('/login/resend', methods=['POST'])
+@limiter.limit("2 per minute")
+def login_resend():
+    """Resend the login 2FA code for the pending login, if any."""
+    user_id = session.get('_2fa_user_id')
+    if not user_id:
+        flash('Please log in first.', 'warning')
+        return redirect(url_for('auth.login'))
+    user = User.query.filter_by(id=user_id, is_active=True).first()
+    if user:
+        OtpService.initiate_login_2fa(user)
+        # Reset the pending window so the resent code has a full window.
+        session['_2fa_started_at'] = datetime.utcnow().isoformat()
+    flash('A new verification code has been sent to your email.', 'info')
+    return redirect(url_for('auth.login_verify'))
+
+
+@auth_bp.route('/login/verify', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
+def login_verify():
+    """Second step of login: verify the emailed 2FA code, then sign in.
+
+    Reachable only after login() has verified the password and stashed the
+    pending user in the session. The actual authenticated session is created
+    here (via _establish_session) and nowhere else on the 2FA path.
+    """
+    if current_user.is_authenticated:
+        return redirect(_dest_for(current_user))
+
+    user_id = session.get('_2fa_user_id')
+    started_at = session.get('_2fa_started_at')
+    if not user_id or not started_at:
+        flash('Please log in first.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    # Enforce the pending-login window independently of the OTP expiry.
+    try:
+        started = datetime.fromisoformat(started_at)
+    except (TypeError, ValueError):
+        started = None
+    if started is None or (datetime.utcnow() - started).total_seconds() > _TWOFA_WINDOW_SECONDS:
+        session.clear()
+        flash('Your login session timed out. Please sign in again.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    user = User.query.filter_by(id=user_id, is_active=True).first()
+    if not user:
+        session.clear()
+        flash('Please log in again.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    form = LoginOtpForm()
+    if form.validate_on_submit():
+        success, message = OtpService.verify_otp(user.email, form.otp.data.strip())
+        if success:
+            remember_email = session.get('_2fa_remember_email')
+            crypto_service.log_audit_action(
+                action='user_login',
+                acting_user=user, acting_role=user.role,
+                details='User logged in (password + email 2FA)',
+                ip_address=request.remote_addr,
+            )
+            # _establish_session clears the session (dropping the _2fa_* keys)
+            # before creating the authenticated one.
+            return _establish_session(user, remember_email)
+        else:
+            crypto_service.log_audit_action(
+                action='login_2fa_failed',
+                acting_user=user, acting_role=user.role,
+                details='Incorrect or expired 2FA code at login',
+                ip_address=request.remote_addr,
+            )
+            flash(message, 'danger')
+
+    # Mask the email in the UI so a shoulder-surfer can't read the full address.
+    local, _, domain = user.email.partition('@')
+    masked_email = (local[:2] + '***@' + domain) if len(local) > 2 else ('***@' + domain)
+    return render_template('auth/login_verify.html', form=form, masked_email=masked_email)
+
+
+@auth_bp.route('/login/resend', methods=['POST'])
+@limiter.limit("2 per minute")
+def login_resend():
+    """Resend the login 2FA code for the pending login, if any."""
+    user_id = session.get('_2fa_user_id')
+    if not user_id:
+        flash('Please log in first.', 'warning')
+        return redirect(url_for('auth.login'))
+    user = User.query.filter_by(id=user_id, is_active=True).first()
+    if user:
+        OtpService.initiate_login_2fa(user)
+        # Reset the pending window so the resent code has a full window.
+        session['_2fa_started_at'] = datetime.utcnow().isoformat()
+    flash('A new verification code has been sent to your email.', 'info')
+    return redirect(url_for('auth.login_verify'))
+
+
+@auth_bp.route('/logout', methods=['POST'])
 @login_required
 def logout():
     sid = session.get('_sid')
@@ -321,9 +498,14 @@ def logout_all():
 @auth_bp.route('/delete_account', methods=['GET', 'POST'])
 @login_required
 def delete_account():
-    # FR-W4: visiting this endpoint submits a deletion REQUEST for System Admin
-    # review and deactivates the account immediately, then logs the user out.
-    # It does not delete directly; final deletion is done by a System Admin.
+    # FR-W4: submitting this endpoint (POST only) files a deletion REQUEST for
+    # System Admin review and deactivates the account immediately, then logs
+    # the user out. It does not delete directly; final deletion is done by a
+    # System Admin. GET only renders the confirmation page below — it must
+    # never trigger the deletion itself, since GET requests aren't CSRF-checked.
+    if request.method == 'GET':
+        return render_template('auth/delete_account.html')
+
     success, message = AuthService.request_account_deletion(current_user)
     if success:
         sid = session.get('_sid')

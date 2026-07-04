@@ -219,8 +219,8 @@ def deactivate_user(user_id):
         return redirect(url_for('admin.manage_users'))
     user = AuthService.get_user_by_id(user_id)
     if user:
-        AuthService.deactivate_user(user, current_user)
-        flash('User account suspended successfully', 'success')
+        success, message = AuthService.deactivate_user(user, current_user)
+        flash(message, 'success' if success else 'danger')
     else:
         flash('User not found', 'danger')
     return redirect(url_for('admin.manage_users'))

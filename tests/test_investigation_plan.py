@@ -130,9 +130,13 @@ def insert_plan_with_raw_incident_when(report, investigator, incident_when):
 
 
 def login_as(client, user):
+    import uuid
+    from datetime import datetime
     with client.session_transaction() as session:
         session["_user_id"] = str(user.id)
         session["_fresh"] = True
+        session["_sid"] = str(uuid.uuid4())
+        session["_session_created_at"] = datetime.utcnow().isoformat()
 
 
 def test_assigned_investigator_can_open_create_page(app, client):

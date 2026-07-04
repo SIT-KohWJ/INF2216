@@ -37,15 +37,32 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      clamav:
+        condition: service_started   # not service_healthy — first-boot freshclam download can take minutes; app fails closed per-request until clamd is ready
     env_file: .env
     environment:
       FLASK_ENV: development
       # app talks to Postgres over the docker network (db:5432, NOT the 5433 host port)
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      CLAMD_HOST: clamav
     ports:
       - "5001:5000"        # open http://localhost:5001 (5000 = AirPlay on macOS)
     volumes:
       - .:/app             # live code reload during dev
- 
+
+  clamav:
+    image: clamav/clamav:stable
+    container_name: sitinform_clamav_local
+    restart: unless-stopped
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s   # first boot downloads virus definitions via freshclam
+
 volumes:
   postgres_data:
+  clamav_data:

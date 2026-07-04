@@ -59,12 +59,14 @@ class PasswordResetRequestForm(FlaskForm):
 
 
 class OtpVerifyForm(FlaskForm):
-    otp = StringField('One-Time Password', validators=[DataRequired(), Length(min=6, max=6)])
+    # Deliberately no Length(min=...) or digit-format validator here: those
+    # would tell an unauthenticated visitor exactly how long/what shape the
+    # OTP is (view-source or the validation error would reveal it). A
+    # mismatched value is instead rejected uniformly by OtpService.verify_otp,
+    # which consumes an attempt either way — same outcome, no format leak.
+    # The upper bound only guards against pathologically large input.
+    otp = StringField('One-Time Password', validators=[DataRequired(), Length(max=32)])
     submit = SubmitField('Verify OTP')
-
-    def validate_otp(self, otp):
-        if not otp.data.isdigit():
-            raise ValidationError('OTP must be a 6-digit number.')
 
 
 class LoginOtpForm(FlaskForm):
