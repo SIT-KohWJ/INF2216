@@ -24,10 +24,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function fileIcon(name) {
         const e = ext(name);
-        if (e === 'pdf')  return '<i class="fas fa-file-pdf text-danger file-icon"></i>';
-        if (e === 'docx') return '<i class="fas fa-file-word text-primary file-icon"></i>';
-        if (['png','jpg','jpeg'].includes(e)) return '<i class="fas fa-file-image text-success file-icon"></i>';
-        return '<i class="fas fa-file file-icon"></i>';
+        const icon = document.createElement('i');
+        icon.classList.add('file-icon', 'fas');
+        if (e === 'pdf') {
+            icon.classList.add('fa-file-pdf', 'text-danger');
+        } else if (e === 'docx') {
+            icon.classList.add('fa-file-word', 'text-primary');
+        } else if (['png', 'jpg', 'jpeg'].includes(e)) {
+            icon.classList.add('fa-file-image', 'text-success');
+        } else {
+            icon.classList.add('fa-file');
+        }
+        return icon;
     }
 
     function showError(msg) {
@@ -53,23 +61,47 @@ document.addEventListener('DOMContentLoaded', function () {
             const valid = ALLOWED.includes(ext(file.name)) && file.size <= MAX_BYTES;
             const card  = document.createElement('div');
             card.className = 'file-card ' + (valid ? 'valid' : 'invalid');
+            card.appendChild(fileIcon(file.name));
 
-            const badge = valid
-                ? `<span class="badge bg-success file-badge">Ready</span>`
-                : (!ALLOWED.includes(ext(file.name))
-                    ? `<span class="badge bg-danger file-badge">Invalid file type</span>`
-                    : `<span class="badge bg-warning text-dark file-badge">Too large</span>`);
+            const info = document.createElement('div');
+            info.className = 'file-info';
 
-            card.innerHTML = `
-                ${fileIcon(file.name)}
-                <div class="file-info">
-                    <div class="file-name" title="${file.name}">${file.name}</div>
-                    <div class="file-size">${formatBytes(file.size)}</div>
-                </div>
-                ${badge}
-                <button type="button" class="btn-remove" data-index="${index}" title="Remove">
-                    <i class="fas fa-times"></i>
-                </button>`;
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'file-name';
+            nameDiv.title = file.name;       // DOM property assignment, not HTML — safe
+            nameDiv.textContent = file.name; // safe: not interpreted as markup
+            info.appendChild(nameDiv);
+
+            const sizeDiv = document.createElement('div');
+            sizeDiv.className = 'file-size';
+            sizeDiv.textContent = formatBytes(file.size);
+            info.appendChild(sizeDiv);
+
+            card.appendChild(info);
+
+            const badge = document.createElement('span');
+            badge.classList.add('badge', 'file-badge');
+            if (valid) {
+                badge.classList.add('bg-success');
+                badge.textContent = 'Ready';
+            } else if (!ALLOWED.includes(ext(file.name))) {
+                badge.classList.add('bg-danger');
+                badge.textContent = 'Invalid file type';
+            } else {
+                badge.classList.add('bg-warning', 'text-dark');
+                badge.textContent = 'Too large';
+            }
+            card.appendChild(badge);
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn-remove';
+            removeBtn.dataset.index = index;
+            removeBtn.title = 'Remove';
+            const removeIcon = document.createElement('i');
+            removeIcon.className = 'fas fa-times';
+            removeBtn.appendChild(removeIcon);
+            card.appendChild(removeBtn);
 
             fileList.appendChild(card);
         });

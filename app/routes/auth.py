@@ -170,9 +170,10 @@ def forgot_password():
 @auth_bp.route('/reset_password', methods=['GET', 'POST'])
 @limiter.limit("3 per minute")
 def reset_password():
-    # Token arrives via query-string after OTP verification (GET) and is
-    # re-submitted as a hidden field on form POST.
-    token = request.args.get('token', '').strip() or request.form.get('token', '').strip()
+    # Token is bound to the server-side session by otp.verify() after OTP
+    # success — never placed in the URL/query string, so it can't leak via
+    # browser history, proxy/access logs, or the Referer header.
+    token = session.get('_pending_reset_token')
     if not token:
         flash('Invalid or missing reset link. Please start the password reset process again.', 'danger')
         return redirect(url_for('auth.forgot_password'))
@@ -184,8 +185,9 @@ def reset_password():
         form.token.data = token
 
     if form.validate_on_submit():
-        success, message = AuthService.reset_password(form.token.data, form.new_password.data)
+        success, message = AuthService.reset_password(token, form.new_password.data)
         if success:
+            session.pop('_pending_reset_token', None)
             flash('Password reset successfully. Please log in with your new password.', 'success')
             return redirect(url_for('auth.login'))
         else:
