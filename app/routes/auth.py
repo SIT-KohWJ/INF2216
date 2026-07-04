@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, flash, make_response, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, make_response, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app import db, limiter
@@ -89,7 +89,7 @@ def login():
                 response.set_cookie(
                     'remembered_email', form.email.data.lower().strip(),
                     max_age=30 * 24 * 3600, httponly=True, samesite='Lax',
-                    secure=request.is_secure,
+                    secure=current_app.config['SESSION_COOKIE_SECURE'],
                 )
             else:
                 response.delete_cookie('remembered_email')
