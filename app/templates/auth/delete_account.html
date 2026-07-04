@@ -18,10 +18,10 @@
                     <li>On approval, your personal information is removed</li>
                     <li>Your submitted reports and audit logs are <strong>preserved</strong> and remain anonymous</li>
                 </ul>
-                <form method="POST" action="{{ url_for('auth.delete_account') }}">
+                <form method="POST" action="{{ url_for('auth.delete_account') }}" data-confirm="Submit an account deletion request? You will be logged out immediately.">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-danger btn-lg" onclick="return confirm('Submit an account deletion request? You will be logged out immediately.')">
+                        <button type="submit" class="btn btn-danger btn-lg">
                             <i class="fas fa-paper-plane"></i> Request Deletion
                         </button>
                     </div>

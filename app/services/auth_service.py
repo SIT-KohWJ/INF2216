@@ -260,12 +260,13 @@ class AuthService:
         if user.role == 'system_admin':
             return False, "System Admin accounts cannot suspend each other."
         user.is_active = False
+        user.invalidate_all_sessions()
         db.session.commit()
         crypto_service.log_audit_action(
             action='user_deactivation',
             acting_user=acting_user, acting_role=acting_user.role,
             target_type='user', target_id=user.id,
-            details='User account suspended',
+            details='User account suspended; active sessions invalidated',
         )
         return True, "User account suspended successfully."
 
@@ -383,6 +384,8 @@ class AuthService:
     def update_user_role(user, new_role, acting_user):
         if str(user.id) == str(acting_user.id):
             return False, "Cannot modify your own role."
+        if user.role == 'system_admin' and acting_user.role == 'system_admin':
+            return False, "System Admin accounts cannot change each other's role."
         if not AuthService.check_self_privilege_escalation(acting_user, new_role):
             return False, "Cannot assign a role higher than your own."
         old_role = user.role

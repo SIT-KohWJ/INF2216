@@ -38,4 +38,23 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+
+    // Confirmation prompt before submitting a destructive/irreversible form.
+    // Add data-confirm="message" to the <form> to require an OK first.
+    document.querySelectorAll('form[data-confirm]').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            if (!window.confirm(form.dataset.confirm)) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    // Copy-to-clipboard button for the report reference number (reports/view.html).
+    document.querySelectorAll('.wb-report-view__copy-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(btn.dataset.reference);
+            }
+        });
+    });
 });

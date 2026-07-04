@@ -64,8 +64,13 @@ def verify():
                 )
 
                 session.pop('_otp_email', None)
+                # Bind the token to the server-side session instead of a URL
+                # query string — a bearer-equivalent secret in a GET URL would
+                # be captured by browser history, proxy/access logs, and any
+                # Referer header sent from the reset_password page.
+                session['_pending_reset_token'] = token_value
                 flash('Identity verified. Please set your new password.', 'success')
-                return redirect(url_for('auth.reset_password', token=token_value))
+                return redirect(url_for('auth.reset_password'))
             else:
                 # Email has no registered account. Non-enumerating: clear session
                 # and fall through to the login page silently.

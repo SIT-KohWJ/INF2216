@@ -29,7 +29,10 @@ def get_report(report_id):
 @login_required
 @role_required('report_admin', 'system_admin')
 def get_audit_logs():
-    logs = AuditService.get_audit_logs(limit=100)
+    if current_user.role == 'report_admin':
+        logs = AuditService.get_report_audit_logs(limit=100)
+    else:  # system_admin
+        logs = AuditService.get_system_audit_logs(limit=100)
     return jsonify({'logs': [{'id': log.id, 'action': log.action, 'timestamp': log.timestamp.isoformat() if log.timestamp else None, 'acting_role': log.acting_role, 'details': log.details} for log in logs]})
 
 
