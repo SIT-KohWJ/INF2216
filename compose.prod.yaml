@@ -52,6 +52,7 @@ services:
   # ── ClamAV malware scanner (B7) ──────────────────────────────────────────────
   clamav:
     image: clamav/clamav:stable
+    platform: ${CLAMAV_PLATFORM:-linux/amd64}
     container_name: sitinform_clamav
     restart: always
     volumes:
