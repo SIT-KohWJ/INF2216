@@ -4,12 +4,55 @@ from flask import Blueprint, current_app, flash, make_response, redirect, render
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app import db, limiter
-from app.forms import LoginForm, PasswordChangeForm, PasswordResetForm, PasswordResetRequestForm, RegistrationForm
+from app.forms import LoginForm, LoginOtpForm, PasswordChangeForm, PasswordResetForm, PasswordResetRequestForm, RegistrationForm
 from app.models import RevokedToken, User
 from app.services.auth_service import AuthService
 from app.services.crypto_service import crypto_service
 from app.services.otp_service import OtpService
 import uuid
+
+# How long a user has, after a correct password, to enter the emailed 2FA
+# code before the pending-login state expires and they must start over.
+_TWOFA_WINDOW_SECONDS = 600  # 10 minutes
+
+
+def _dest_for(user):
+    """Post-login landing page for a user, based on role."""
+    if user.role in ['system_admin', 'report_admin']:
+        return url_for('admin.dashboard')
+    if user.role == 'investigator':
+        return url_for('reports.investigator_dashboard')
+    return url_for('reports.dashboard')
+
+
+def _establish_session(user, remember_email):
+    """Create the authenticated session AFTER both factors have passed.
+
+    This is the block that used to live inline in login(); it is deliberately
+    only reachable once the emailed OTP (second factor) is verified.
+    """
+    # Regenerate session to prevent session-fixation attacks.
+    session.clear()
+    # "Remember Me" here only pre-fills the email next time; it does NOT
+    # keep the user logged in (no long-lived remember cookie), and the
+    # password is never stored anywhere.
+    login_user(user, remember=False)
+    # _sid is the revocable session identifier; _session_created_at is
+    # the watermark checked against User.sessions_invalidated_at.
+    session['_sid'] = str(uuid.uuid4())
+    session['_session_created_at'] = datetime.utcnow().isoformat()
+
+    response = make_response(redirect(_dest_for(user)))
+    if remember_email:
+        # 30-day, HttpOnly cookie holding only the email address.
+        response.set_cookie(
+            'remembered_email', remember_email,
+            max_age=30 * 24 * 3600, httponly=True, samesite='Lax',
+            secure=request.is_secure,
+        )
+    else:
+        response.delete_cookie('remembered_email')
+    return response
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -66,34 +109,24 @@ def login():
         ip_address = request.remote_addr
         user = AuthService.authenticate_user(form.email.data, form.password.data, ip_address)
         if user:
-            # Regenerate session to prevent session-fixation attacks.
+            # First factor (password) passed. Do NOT log in yet — start the
+            # email second factor. Stash only the user id, the remember-email
+            # preference, and a timestamp; never the password.
+            OtpService.initiate_login_2fa(user)
             session.clear()
-            # "Remember Me" here only pre-fills the email next time; it does NOT
-            # keep the user logged in (no long-lived remember cookie), and the
-            # password is never stored anywhere.
-            login_user(user, remember=False)
-            # _sid is the revocable session identifier; _session_created_at is
-            # the watermark checked against User.sessions_invalidated_at.
-            session['_sid'] = str(uuid.uuid4())
-            session['_session_created_at'] = datetime.utcnow().isoformat()
-
-            if user.role in ['system_admin', 'report_admin']:
-                dest = url_for('admin.dashboard')
-            elif user.role == 'investigator':
-                dest = url_for('reports.investigator_dashboard')
-            else:
-                dest = url_for('reports.dashboard')
-            response = make_response(redirect(dest))
-            if form.remember.data:
-                # 30-day, HttpOnly cookie holding only the email address.
-                response.set_cookie(
-                    'remembered_email', form.email.data.lower().strip(),
-                    max_age=30 * 24 * 3600, httponly=True, samesite='Lax',
-                    secure=current_app.config['SESSION_COOKIE_SECURE'],
-                )
-            else:
-                response.delete_cookie('remembered_email')
-            return response
+            session['_2fa_user_id'] = user.id
+            session['_2fa_started_at'] = datetime.utcnow().isoformat()
+            session['_2fa_remember_email'] = (
+                form.email.data.lower().strip() if form.remember.data else None
+            )
+            crypto_service.log_audit_action(
+                action='login_2fa_challenged',
+                acting_user=user, acting_role=user.role,
+                details='Password verified; email 2FA code sent',
+                ip_address=ip_address,
+            )
+            flash('We\'ve emailed you a verification code to finish signing in.', 'info')
+            return redirect(url_for('auth.login_verify'))
         else:
             flash('Invalid email or password.', 'danger')
 
@@ -104,6 +137,86 @@ def login():
             form.email.data = remembered
             form.remember.data = True
     return render_template('auth/login.html', form=form)
+
+
+@auth_bp.route('/login/verify', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
+def login_verify():
+    """Second step of login: verify the emailed 2FA code, then sign in.
+
+    Reachable only after login() has verified the password and stashed the
+    pending user in the session. The actual authenticated session is created
+    here (via _establish_session) and nowhere else on the 2FA path.
+    """
+    if current_user.is_authenticated:
+        return redirect(_dest_for(current_user))
+
+    user_id = session.get('_2fa_user_id')
+    started_at = session.get('_2fa_started_at')
+    if not user_id or not started_at:
+        flash('Please log in first.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    # Enforce the pending-login window independently of the OTP expiry.
+    try:
+        started = datetime.fromisoformat(started_at)
+    except (TypeError, ValueError):
+        started = None
+    if started is None or (datetime.utcnow() - started).total_seconds() > _TWOFA_WINDOW_SECONDS:
+        session.clear()
+        flash('Your login session timed out. Please sign in again.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    user = User.query.filter_by(id=user_id, is_active=True).first()
+    if not user:
+        session.clear()
+        flash('Please log in again.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    form = LoginOtpForm()
+    if form.validate_on_submit():
+        success, message = OtpService.verify_otp(user.email, form.otp.data.strip())
+        if success:
+            remember_email = session.get('_2fa_remember_email')
+            crypto_service.log_audit_action(
+                action='user_login',
+                acting_user=user, acting_role=user.role,
+                details='User logged in (password + email 2FA)',
+                ip_address=request.remote_addr,
+            )
+            # _establish_session clears the session (dropping the _2fa_* keys)
+            # before creating the authenticated one.
+            return _establish_session(user, remember_email)
+        else:
+            crypto_service.log_audit_action(
+                action='login_2fa_failed',
+                acting_user=user, acting_role=user.role,
+                details='Incorrect or expired 2FA code at login',
+                ip_address=request.remote_addr,
+            )
+            flash(message, 'danger')
+
+    # Mask the email in the UI so a shoulder-surfer can't read the full address.
+    local, _, domain = user.email.partition('@')
+    masked_email = (local[:2] + '***@' + domain) if len(local) > 2 else ('***@' + domain)
+    return render_template('auth/login_verify.html', form=form, masked_email=masked_email)
+
+
+@auth_bp.route('/login/resend', methods=['POST'])
+@limiter.limit("2 per minute")
+def login_resend():
+    """Resend the login 2FA code for the pending login, if any."""
+    user_id = session.get('_2fa_user_id')
+    if not user_id:
+        flash('Please log in first.', 'warning')
+        return redirect(url_for('auth.login'))
+    user = User.query.filter_by(id=user_id, is_active=True).first()
+    if user:
+        OtpService.initiate_login_2fa(user)
+        # Reset the pending window so the resent code has a full window.
+        session['_2fa_started_at'] = datetime.utcnow().isoformat()
+    flash('A new verification code has been sent to your email.', 'info')
+    return redirect(url_for('auth.login_verify'))
 
 
 @auth_bp.route('/logout', methods=['POST'])
