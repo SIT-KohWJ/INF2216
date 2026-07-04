@@ -69,6 +69,15 @@ class OtpVerifyForm(FlaskForm):
     submit = SubmitField('Verify OTP')
 
 
+class LoginOtpForm(FlaskForm):
+    otp = StringField('Verification Code', validators=[DataRequired(), Length(min=6, max=6)])
+    submit = SubmitField('Verify & Sign In')
+
+    def validate_otp(self, otp):
+        if not otp.data.isdigit():
+            raise ValidationError('Code must be a 6-digit number.')
+
+
 class PasswordResetForm(FlaskForm):
     # Hidden field: pre-filled from the URL query-string in the route, not typed by the user.
     token = HiddenField('Token', validators=[DataRequired()])

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Verify OTP - SITinform{% endblock %}
+{% block title %}Verify Login - SITinform{% endblock %}
 {% block content %}
 <div class="register-page">
     <div class="register-page__shell register-page__shell--compact">
@@ -9,16 +9,16 @@
                     <i class="fas fa-shield-alt"></i>
                 </div>
                 <div>
-                    <h1 class="register-panel__title">Verify your identity</h1>
-                    <p class="register-panel__subtitle mb-0">Enter the one-time password we just sent you.</p>
+                    <h1 class="register-panel__title">Verify your login</h1>
+                    <p class="register-panel__subtitle mb-0">One more step to finish signing in securely.</p>
                 </div>
             </div>
 
             <div class="register-panel__body">
                 <p class="auth-page-copy">
-                    A 6-digit one-time password was sent to
-                    <span class="auth-highlight">{{ email }}</span>.
-                    It is valid for <span class="auth-highlight">5 minutes</span> and can only be used once.
+                    Your password was correct. Enter the 6-digit verification code we
+                    emailed to <span class="auth-highlight">{{ masked_email }}</span>.
+                    It is valid for a few minutes and can be used only once.
                 </p>
 
                 <form method="POST" autocomplete="off" novalidate>
@@ -43,11 +43,14 @@
                 </form>
 
                 <div class="auth-actions">
-                    <a href="{{ url_for('auth.forgot_password') }}" class="auth-action-link">
-                        <i class="fas fa-rotate-right"></i> Didn&apos;t receive it? Request a new OTP
-                    </a>
-                    <a href="{{ url_for('auth.forgot_password') }}" class="auth-action-link">
-                        <i class="fas fa-arrow-left"></i> Wrong address? Go back and try again
+                    <form method="POST" action="{{ url_for('auth.login_resend') }}">
+                        {{ form.csrf_token }}
+                        <button type="submit" class="auth-action-link">
+                            <i class="fas fa-rotate-right"></i> Didn&apos;t receive it? Resend code
+                        </button>
+                    </form>
+                    <a href="{{ url_for('auth.login') }}" class="auth-action-link">
+                        <i class="fas fa-arrow-left"></i> Cancel and return to login
                     </a>
                 </div>
             </div>
