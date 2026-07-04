@@ -4,6 +4,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
+from flask_talisman import Talisman
 from flask_wtf.csrf import CSRFProtect
 
 db = SQLAlchemy()
@@ -11,6 +12,7 @@ login_manager = LoginManager()
 limiter = Limiter(key_func=get_remote_address)
 csrf = CSRFProtect()
 mail = Mail()
+talisman = Talisman()
 
 
 def create_app(config_name=None):
@@ -28,6 +30,27 @@ def create_app(config_name=None):
     limiter.init_app(app)
     csrf.init_app(app)
     mail.init_app(app)
+
+    # Security response headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options,
+    # X-XSS-Protection, Referrer-Policy) — the app-level equivalent of Node's
+    # "helmet", so headers apply in dev/test too, not just behind nginx in prod.
+    # force_https / session_cookie_secure are left to this app's own
+    # enforce_https before_request and app/config.py, so Talisman doesn't fight
+    # them or force-redirect during tests (which don't run over TLS).
+    talisman.init_app(
+        app,
+        force_https=False,
+        session_cookie_secure=False,
+        frame_options='DENY',
+        x_xss_protection=True,
+        content_security_policy={
+            'default-src': "'self'",
+            'script-src': "'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+            'style-src': "'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+            'font-src': "'self' https://cdnjs.cloudflare.com data:",
+            'img-src': "'self' data:",
+        },
+    )
 
     # Wire Flask-Mail into EmailService so OTP delivery works.
     from app.services.email_service import EmailService

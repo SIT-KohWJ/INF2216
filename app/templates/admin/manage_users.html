@@ -69,9 +69,9 @@
                                     <span>Role</span>
                                 </a>
 
-                                <form method="POST" action="{{ url_for('admin.deactivate_user', user_id=user.id) }}" class="mu-actions__form">
+                                <form method="POST" action="{{ url_for('admin.deactivate_user', user_id=user.id) }}" class="mu-actions__form" data-confirm="Suspend this account?">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="mu-action-btn mu-action-btn--red" onclick="return confirm('Suspend this account?')">
+                                    <button type="submit" class="mu-action-btn mu-action-btn--red">
                                         <i class="fas fa-ban"></i>
                                         <span>Suspend</span>
                                     </button>
@@ -125,16 +125,16 @@
                         <td>{{ format_date(user.deletion_requested_at) if user.deletion_requested_at else 'N/A' }}</td>
                         <td>
                             <div class="mu-actions">
-                                <form method="POST" action="{{ url_for('admin.approve_deletion', user_id=user.id) }}" class="mu-actions__form">
+                                <form method="POST" action="{{ url_for('admin.approve_deletion', user_id=user.id) }}" class="mu-actions__form" data-confirm="Approve deletion? This permanently removes the profile and cannot be undone. Reports and audit logs are preserved.">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="mu-action-btn mu-action-btn--red" onclick="return confirm('Approve deletion? This permanently removes the profile and cannot be undone. Reports and audit logs are preserved.')">
+                                    <button type="submit" class="mu-action-btn mu-action-btn--red">
                                         <i class="fas fa-trash-alt"></i>
                                         <span>Approve</span>
                                     </button>
                                 </form>
-                                <form method="POST" action="{{ url_for('admin.deny_deletion', user_id=user.id) }}" class="mu-actions__form">
+                                <form method="POST" action="{{ url_for('admin.deny_deletion', user_id=user.id) }}" class="mu-actions__form" data-confirm="Deny this request and reactivate the account?">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="mu-action-btn mu-action-btn--green" onclick="return confirm('Deny this request and reactivate the account?')">
+                                    <button type="submit" class="mu-action-btn mu-action-btn--green">
                                         <i class="fas fa-undo"></i>
                                         <span>Deny</span>
                                     </button>

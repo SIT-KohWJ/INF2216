@@ -16,7 +16,7 @@
             <div class="wb-report-view__eyebrow">Report Reference</div>
             <div class="wb-report-view__reference-row">
                 <h1 class="wb-report-view__reference">{{ report.reference_number }}</h1>
-                <button type="button" class="wb-report-view__copy-btn" aria-label="Copy report reference" data-reference="{{ report.reference_number }}" onclick="if (navigator.clipboard) { navigator.clipboard.writeText(this.dataset.reference); }">
+                <button type="button" class="wb-report-view__copy-btn" aria-label="Copy report reference" data-reference="{{ report.reference_number }}">
                     <i class="far fa-copy"></i>
                 </button>
             </div>
@@ -462,9 +462,9 @@
                 {% endif %}
                 {% endif %}
                 {% if can_close_report %}
-                <form method="POST" action="{{ url_for('reports.close_report', report_id=report.id) }}">
+                <form method="POST" action="{{ url_for('reports.close_report', report_id=report.id) }}" data-confirm="Close this report?">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-outline-success w-100" onclick="return confirm('Close this report?')"><i class="fas fa-check-circle"></i> Close Report</button>
+                    <button type="submit" class="btn btn-outline-success w-100"><i class="fas fa-check-circle"></i> Close Report</button>
                 </form>
                 {% else %}
                 <button type="button" class="btn btn-outline-success w-100" disabled><i class="fas fa-check-circle"></i> Close Report</button>

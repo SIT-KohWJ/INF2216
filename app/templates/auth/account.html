@@ -56,7 +56,7 @@
                         <strong>Active session</strong>
                         <div class="text-muted small">End your current session and require signing in again.</div>
                     </div>
-                    <form method="POST" action="{{ url_for('auth.logout_all') }}" onsubmit="return confirm('End your active session? You will be logged out.');">
+                    <form method="POST" action="{{ url_for('auth.logout_all') }}" data-confirm="End your active session? You will be logged out.">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-outline-warning btn-sm">Log Out Everywhere</button>
                     </form>
