@@ -5,7 +5,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 
 from app import db, limiter
 from app.forms import LoginForm, LoginOtpForm, PasswordChangeForm, PasswordResetForm, PasswordResetRequestForm, RegistrationForm
-from app.models import RevokedToken, User, User
+from app.models import RevokedToken, User
 from app.services.auth_service import AuthService
 from app.services.crypto_service import crypto_service
 from app.services.otp_service import OtpService
