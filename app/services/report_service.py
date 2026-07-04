@@ -308,20 +308,12 @@ class ReportService:
         return None
 
     @staticmethod
-    def can_manage_investigation_actions(report):
-        return ReportService.get_investigation_action_block_reason(report) is None
-
-    @staticmethod
     def get_close_block_reason(report):
         if report.status == 'Closed':
             return "This report is already closed"
         if report.status != 'Under Review':
             return "Report must be in Under Review status to close"
         return None
-
-    @staticmethod
-    def can_close_report(report):
-        return ReportService.get_close_block_reason(report) is None
 
     @staticmethod
     def normalize_report_statuses():

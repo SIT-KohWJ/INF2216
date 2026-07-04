@@ -1,6 +1,3 @@
-from datetime import datetime
-
-
 def format_datetime(dt):
     if dt:
         return dt.strftime('%Y-%m-%d %H:%M:%S')
@@ -10,12 +7,6 @@ def format_datetime(dt):
 def format_date(dt):
     if dt:
         return dt.strftime('%Y-%m-%d')
-    return ''
-
-
-def format_time(dt):
-    if dt:
-        return dt.strftime('%H:%M:%S')
     return ''
 
 
@@ -50,12 +41,6 @@ def get_report_status_css(status):
 def get_action_css(action):
     action_classes = {'user_registration': 'text-success', 'user_login': 'text-info', 'user_logout': 'text-warning', 'report_submission': 'text-primary', 'status_update': 'text-info', 'investigator_assignment': 'text-warning', 'investigation_note': 'text-secondary', 'password_change': 'text-danger', 'user_deactivation': 'text-danger', 'login_failed': 'text-danger'}
     return action_classes.get(action, 'text-muted')
-
-
-def json_serializer(obj):
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    raise TypeError(f"Type {type(obj)} not serializable")
 
 
 def get_role_display_name(role):
