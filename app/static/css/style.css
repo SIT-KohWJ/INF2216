@@ -456,6 +456,49 @@ body {
     text-decoration: underline;
 }
 
+/* One-time password entry (2FA login + password-reset OTP) */
+.auth-otp-input {
+    min-height: 3.55rem;
+    letter-spacing: 0.6rem;
+    text-align: center;
+    font-size: 1.6rem;
+    font-weight: 700;
+    /* Compensate for the trailing letter-spacing so digits sit centred. */
+    text-indent: 0.6rem;
+}
+
+.auth-highlight {
+    color: #0f172a;
+    font-weight: 600;
+}
+
+.auth-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 1.5rem;
+}
+
+.auth-action-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #64748b;
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.auth-action-link:hover {
+    color: #2563eb;
+    text-decoration: underline;
+}
+
 .register-page__footer {
     margin-top: 2rem;
     text-align: center;

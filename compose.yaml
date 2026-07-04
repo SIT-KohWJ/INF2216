@@ -52,6 +52,12 @@ services:
 
   clamav:
     image: clamav/clamav:stable
+    # ClamAV publishes only an amd64 image (no arm64). The default below is a
+    # no-op on amd64 machines (Intel/AMD Windows + Intel Macs) and forces the
+    # amd64 image to run under emulation (Rosetta/QEMU) on arm64 machines
+    # (Apple Silicon Macs, Windows-on-ARM). Override via CLAMAV_PLATFORM in .env
+    # if you ever need to (rarely necessary).
+    platform: ${CLAMAV_PLATFORM:-linux/amd64}
     container_name: sitinform_clamav_local
     restart: unless-stopped
     volumes:
