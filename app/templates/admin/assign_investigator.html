@@ -6,7 +6,7 @@
         <div class="card shadow">
             <div class="card-header bg-warning text-dark"><h4 class="mb-0"><i class="fas fa-user-plus"></i> Assign Investigator</h4></div>
             <div class="card-body">
-                <p>Report: <code>{{ report.reference_number }}</code> - {{ report.title }}</p>
+                <p>Report: <code>{{ report.reference_number }}</code> - {{ report.display_title if report.display_title is defined else report.title }}</p>
                 <form method="POST">
                     {{ form.hidden_tag() }}
                     <div class="mb-3">{{ form.investigator.label(class="form-label") }} {{ form.investigator(class="form-select") }}</div>

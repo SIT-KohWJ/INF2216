@@ -18,7 +18,7 @@ RUN pip install -r requirements.txt
 COPY . .
 
 # Defence in depth: never run the app as root
-RUN useradd --create-home --uid 10001 appuser \
+RUN useradd --create-home --uid 1000 appuser \
  && chown -R appuser:appuser /app
 USER appuser
 

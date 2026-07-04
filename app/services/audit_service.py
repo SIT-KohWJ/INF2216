@@ -1,23 +1,29 @@
+"""Legacy audit-query helpers.
+
+The canonical entry point for *writing* audit entries is
+`app.securityfeature.AuditService.log()`. This module owns the *read* side
+and the integrity-verification helpers, which are still used by the admin
+dashboards. The class is renamed to `_LegacyAuditService` to make clear that
+new code should not import it directly -- use `securityfeature.AuditService`
+instead, which delegates here for the read methods.
+
+Kept as a separate module (not folded into securityfeature) so the existing
+admin templates and routes that import from `app.services.audit_service`
+keep working without a sweeping rename.
+"""
 from app.models import AuditLog
 from app import db
 from app.services.crypto_service import crypto_service
 
 
-REPORT_ACTIONS = {
-    'report_submission', 'status_update', 'investigator_assignment',
-    'investigation_note', 'outcome_recommended', 'evidence_downloaded',
-    'report_viewed', 'audit_log_export', 'evidence_upload_failed', 'report_downloaded'
-}
-
-SYSTEM_ACTIONS = {
-    'user_registration', 'user_login', 'user_logout', 'password_change',
-    'role_change', 'user_deactivation', 'user_reactivation', 'account_deletion',
-    'login_failed', 'login_failed_account_locked', 'password_reset_requested',
-    'password_reset_completed'
-}
+# Canonical action sets live in securityfeature.AuditService -- these are kept
+# for backward compatibility with code that imports them from here.
+from app.securityfeature.audit import AuditService as _CanonicalAuditService
+REPORT_ACTIONS = _CanonicalAuditService.REPORT_ACTIONS
+SYSTEM_ACTIONS = _CanonicalAuditService.SYSTEM_ACTIONS
 
 
-class AuditService:
+class _LegacyAuditService:
     @staticmethod
     def get_audit_logs(limit=100):
         return AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(limit).all()

@@ -19,7 +19,7 @@ def init_db():
             {'email': 'whistleblower1@sit.singaporetech.edu.sg', 'password': 'Password123!', 'first_name': 'Alice', 'last_name': 'Tan', 'role': 'whistleblower'},
             {'email': 'whistleblower2@sit.singaporetech.edu.sg', 'password': 'Password123!', 'first_name': 'Bob', 'last_name': 'Lim', 'role': 'whistleblower'},
             {'email': 'investigator1@sit.singaporetech.edu.sg', 'password': 'Password123!', 'first_name': 'Charlie', 'last_name': 'Wong', 'role': 'investigator'},
-            {'email': 'reportadmin@sit.singaporetech.edu.sg', 'password': 'Admin123!', 'first_name': 'Report', 'last_name': 'Admin', 'role': 'report_admin'},
+            {'email': 'admin@sit.singaporetech.edu.sg', 'password': 'Admin123!', 'first_name': 'Report', 'last_name': 'Admin', 'role': 'report_admin'},
             {'email': 'sysadmin@sit.singaporetech.edu.sg', 'password': 'Sysadmin123!', 'first_name': 'System', 'last_name': 'Admin', 'role': 'system_admin'},
         ]
 

@@ -4,7 +4,11 @@
 <div class="row justify-content-center">
     <div class="col-md-6 text-center">
         <h1 class="display-1 text-danger">500</h1>
-        <p class="lead">Internal server error.</p>
+        <p class="lead">Something went wrong on our side.</p>
+        {% if request_id %}
+        <p class="text-muted small">Reference: <code>{{ request_id }}</code></p>
+        <p class="text-muted">If the problem persists, quote this reference to support.</p>
+        {% endif %}
         <a href="{{ url_for('reports.dashboard') }}" class="btn btn-primary">Go Home</a>
     </div>
 </div>
