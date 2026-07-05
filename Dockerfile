@@ -17,8 +17,13 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-# Defence in depth: never run the app as root
+# Defence in depth: never run the app as root.
+# instance/ must exist appuser-owned in the image: compose.prod.yaml mounts a
+# named volume there, and docker seeds a fresh volume with the image dir's
+# ownership — without this, the mount point is root-owned and the app cannot
+# write its audit signing key.
 RUN useradd --create-home --uid 10001 appuser \
+ && mkdir -p /app/instance \
  && chown -R appuser:appuser /app
 USER appuser
 

@@ -46,13 +46,30 @@ class CryptoService:
         os.makedirs(instance_path, exist_ok=True)
         key_path = os.path.join(instance_path, 'ecdsa_key.pem')
 
-        if os.path.exists(key_path):
-            with open(key_path, 'rb') as f:
-                self.ecdsa_private_key = ECC.import_key(f.read())
-        else:
-            self.ecdsa_private_key = ECC.generate(curve='P-256')
-            with open(key_path, 'wb') as f:
-                f.write(self.ecdsa_private_key.export_key(format='PEM').encode('utf-8'))
+        if not os.path.exists(key_path):
+            # Gunicorn boots several workers concurrently and each runs
+            # init_app. Writing key_path directly from every worker lets each
+            # hold a DIFFERENT in-memory key (last writer wins on disk), so
+            # audit entries signed by one worker fail verification on another.
+            # Instead: write to a private temp file, then hard-link it into
+            # place — link() is atomic and fails if the key already exists, so
+            # exactly one worker's key wins and key_path is never observable
+            # half-written.
+            tmp_path = f'{key_path}.{os.getpid()}.tmp'
+            new_key = ECC.generate(curve='P-256')
+            fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            try:
+                with os.fdopen(fd, 'wb') as f:
+                    f.write(new_key.export_key(format='PEM').encode('utf-8'))
+                try:
+                    os.link(tmp_path, key_path)
+                except FileExistsError:
+                    pass  # another worker won the race; use its key below
+            finally:
+                os.unlink(tmp_path)
+
+        with open(key_path, 'rb') as f:
+            self.ecdsa_private_key = ECC.import_key(f.read())
 
         self.ecdsa_public_key = self.ecdsa_private_key.public_key()
 

@@ -46,6 +46,12 @@ services:
       CLAMD_HOST:           clamav
     expose:
       - "5000"
+    volumes:
+      # instance/ holds the ECDSA audit-log signing key (crypto_service.py).
+      # It must outlive the container: without this volume every rebuild
+      # regenerates the key, permanently invalidating the signatures of all
+      # audit entries written before the redeploy.
+      - instance_data:/app/instance
     networks:
       - backend
 
@@ -112,3 +118,4 @@ volumes:
   postgres_data:
   splunk_data:
   clamav_data:
+  instance_data:
