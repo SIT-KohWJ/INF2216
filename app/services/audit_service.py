@@ -19,20 +19,12 @@ SYSTEM_ACTIONS = {
 
 class AuditService:
     @staticmethod
-    def get_audit_logs(limit=100):
-        return AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(limit).all()
-
-    @staticmethod
     def get_report_audit_logs(limit=100):
         return AuditLog.query.filter(AuditLog.action.in_(REPORT_ACTIONS)).order_by(AuditLog.timestamp.desc()).limit(limit).all()
 
     @staticmethod
     def get_system_audit_logs(limit=100):
         return AuditLog.query.filter(AuditLog.action.in_(SYSTEM_ACTIONS)).order_by(AuditLog.timestamp.desc()).limit(limit).all()
-
-    @staticmethod
-    def get_recent_activity(limit=10):
-        return AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(limit).all()
 
     @staticmethod
     def get_recent_report_activity(limit=10):
@@ -54,11 +46,6 @@ class AuditService:
             else:
                 invalid += 1
         return {'total': len(logs), 'valid': valid, 'invalid': invalid, 'integrity_ok': invalid == 0}
-
-    @staticmethod
-    def export_audit_logs():
-        logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).all()
-        return [{'id': log.id, 'timestamp': log.timestamp.isoformat() if log.timestamp else None, 'action': log.action, 'acting_user_id': log.acting_user_id, 'acting_role': log.acting_role, 'target_type': log.target_type, 'target_id': log.target_id, 'details': log.details, 'ip_address': log.ip_address} for log in logs]
 
     @staticmethod
     def get_suspicious_activity():

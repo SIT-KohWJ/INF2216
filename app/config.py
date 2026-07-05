@@ -74,6 +74,14 @@ class Config:
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')   # Brevo SMTP key (not account password)
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@sitinform.sit.singaporetech.edu.sg')
 
+    # Dev-only convenience: skip the email 2FA step at login for staff roles
+    # (system_admin, report_admin, investigator) so local testing doesn't
+    # require checking email every time. This flag alone does nothing — the
+    # login route additionally requires app.debug to be True, and
+    # ProductionConfig hardcodes DEBUG = False (not env-controlled), so
+    # setting this in a production .env by mistake has no effect.
+    DISABLE_STAFF_OTP = os.environ.get('DISABLE_STAFF_OTP', 'false').lower() == 'true'
+
 
 class DevelopmentConfig(Config):
     DEBUG = True
@@ -99,3 +107,36 @@ config = {
     'production': ProductionConfig,
     'default': DevelopmentConfig
 }
+
+
+def validate_production_secrets():
+    """Fail closed at boot if production secrets were never actually set.
+
+    The Config attributes above fall back to insecure/ephemeral defaults (a
+    hardcoded dev string, or a fresh os.urandom() value) so the app can still
+    boot in dev/test without a .env file. In production those fallbacks must
+    never be reached silently: a missing SECRET_KEY signs every session/CSRF
+    token with a publicly-known string, and a missing HMAC_SECRET_KEY /
+    ENCRYPTION_KEY hands each gunicorn worker process a DIFFERENT random key
+    (since --preload isn't used), making previously-encrypted report data
+    undecryptable on requests routed to a different worker and breaking the
+    whistleblower-anonymity HMAC non-deterministically across workers.
+
+    Checks os.environ directly rather than app.config, because by the time
+    app.config is populated the class-level fallback has already replaced
+    any missing value with a non-empty (but insecure) one.
+    """
+    missing = [name for name in ('SECRET_KEY', 'HMAC_SECRET_KEY') if not os.environ.get(name)]
+    if not (os.environ.get('FIELD_ENCRYPTION_KEY') or os.environ.get('ENCRYPTION_KEY')):
+        missing.append('FIELD_ENCRYPTION_KEY (or ENCRYPTION_KEY)')
+    if missing:
+        raise RuntimeError(
+            'Missing required production secret(s): ' + ', '.join(missing)
+        )
+    if os.environ.get('SECRET_KEY') == 'dev-secret-key-change-in-production':
+        raise RuntimeError('SECRET_KEY is set to the insecure development default')
+    # ProductionConfig.DEBUG is already hardcoded False, which alone makes the
+    # auth.py OTP-skip gate inert — but fail loudly at boot anyway if the flag
+    # made it into a prod env, rather than relying silently on that gate.
+    if os.environ.get('DISABLE_STAFF_OTP', 'false').lower() == 'true':
+        raise RuntimeError('DISABLE_STAFF_OTP must not be set in production')

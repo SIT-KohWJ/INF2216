@@ -109,37 +109,6 @@ jobs:
       - name: pip-audit
         run: pip-audit -r requirements.txt
 
-  # ── OWASP Dependency Check (SCA) ───────────────────────────────────────────
-  owasp-dependency-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install Python dependencies for scanning
-        run: pip install -r requirements.txt --target ./ci-python-deps
-      - name: Run OWASP Dependency Check
-        uses: dependency-check/Dependency-Check_Action@main
-        with:
-          project: "SITinform"
-          path: "."
-          format: "HTML"
-          out: "dependency-check-report"
-          # The Python analyzer is experimental and disabled by default.
-          args: --enableExperimental
-        # NVD rate-limits anonymous requests heavily (scans can take 30+ min
-        # or fail without a key). Register a free key at
-        # https://nvd.nist.gov/developers/request-an-api-key and store it as
-        # a repository secret named NVD_API_KEY.
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-      - name: Upload Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: Dependency-Check-Report
-          path: dependency-check-report
-
   # ── Container build (keeps the Dockerfile valid; does not push) ────────────
   docker-build:
     runs-on: ubuntu-latest

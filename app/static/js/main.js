@@ -57,4 +57,17 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+
+    // Status filter dropdown (investigator_dashboard.html).
+    const filter = document.getElementById('investigator-status-filter');
+    const rows = document.querySelectorAll('[data-case-row]');
+    if (filter && rows.length) {
+        filter.addEventListener('change', function () {
+            const selected = this.value;
+            rows.forEach(function (row) {
+                const status = row.dataset.status || '';
+                row.style.display = (!selected || status === selected) ? '' : 'none';
+            });
+        });
+    }
 });

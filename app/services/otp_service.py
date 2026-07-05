@@ -165,10 +165,3 @@ class OtpService:
                 "Login 2FA email delivery failed; SMTP may be misconfigured"
             )
         return sent
-
-    @staticmethod
-    def cleanup_expired() -> int:
-        """Delete expired OTP records. Returns the number of rows removed."""
-        deleted = OtpToken.query.filter(OtpToken.expires_at < datetime.utcnow()).delete()
-        db.session.commit()
-        return deleted

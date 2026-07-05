@@ -3,7 +3,7 @@ from wtforms import (
     BooleanField, DateField, TimeField, FileField, HiddenField, PasswordField,
     SelectField, StringField, SubmitField, TextAreaField,
 )
-from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError
+from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
 
 from app.services.auth_service import AuthService
 
@@ -96,7 +96,7 @@ class PasswordResetForm(FlaskForm):
 # ---------------------------------------------------------------------------
 
 class ReportForm(FlaskForm):
-    title = StringField('Title', validators=[DataRequired(), Length(max=255)])
+    title = StringField('Title', validators=[DataRequired(), Length(max=100)])
     description = TextAreaField('Description', validators=[DataRequired(), Length(max=10000)])
     category = SelectField('Category', choices=[
         ('academic_misconduct', 'Academic Misconduct'),
@@ -174,26 +174,3 @@ class RoleChangeForm(FlaskForm):
         ('system_admin', 'System Admin'),
     ], validators=[DataRequired()])
     submit = SubmitField('Change Role')
-
-
-class ReportFilterForm(FlaskForm):
-    category = SelectField('Category', choices=[
-        ('', 'All Categories'),
-        ('academic_misconduct', 'Academic Misconduct'),
-        ('financial_misconduct', 'Financial Misconduct'),
-        ('harassment', 'Harassment'),
-        ('policy_violation', 'Policy Violation'),
-        ('ethical_concern', 'Ethical Concern'),
-        ('other', 'Other'),
-    ], default='')
-    status = SelectField('Status', choices=[
-        ('', 'All Statuses'),
-        ('Received', 'Received'),
-        ('Triaged', 'Triaged'),
-        ('Investigating', 'Investigating'),
-        ('Resolved', 'Resolved'),
-    ], default='')
-    search = StringField('Search')
-    date_from = DateField('From Date', format='%Y-%m-%d', validators=[Optional()])
-    date_to = DateField('To Date', format='%Y-%m-%d', validators=[Optional()])
-    submit = SubmitField('Filter')

@@ -1,22 +1,5 @@
 {% extends "base.html" %}
 {% block title %}Investigator Dashboard - SITinform{% endblock %}
-{% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const filter = document.getElementById('investigator-status-filter');
-    const rows = document.querySelectorAll('[data-case-row]');
-    if (!filter || !rows.length) return;
-
-    filter.addEventListener('change', function () {
-        const selected = this.value;
-        rows.forEach(function (row) {
-            const status = row.dataset.status || '';
-            row.style.display = (!selected || status === selected) ? '' : 'none';
-        });
-    });
-});
-</script>
-{% endblock %}
 {% block content %}
 {% set total_cases = all_reports|length %}
 {% set assigned_cases = my_reports|length %}

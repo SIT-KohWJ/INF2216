@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, flash, make_response, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, make_response, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app import db, limiter
@@ -14,6 +14,10 @@ import uuid
 # How long a user has, after a correct password, to enter the emailed 2FA
 # code before the pending-login state expires and they must start over.
 _TWOFA_WINDOW_SECONDS = 600  # 10 minutes
+
+# Dev-only: roles that may skip login 2FA when DISABLE_STAFF_OTP is set.
+# Never takes effect in production — see DISABLE_STAFF_OTP in app/config.py.
+_STAFF_ROLES_OTP_SKIPPABLE = {'system_admin', 'report_admin', 'investigator'}
 
 
 def _dest_for(user):
@@ -109,6 +113,21 @@ def login():
         ip_address = request.remote_addr
         user = AuthService.authenticate_user(form.email.data, form.password.data, ip_address)
         if user:
+            # Dev-only escape hatch: skip email 2FA for staff roles so local
+            # testing doesn't require checking email on every login. Double
+            # gated — app.debug is only ever True under DevelopmentConfig;
+            # ProductionConfig hardcodes DEBUG = False regardless of env vars.
+            if (current_app.debug and current_app.config.get('DISABLE_STAFF_OTP')
+                    and user.role in _STAFF_ROLES_OTP_SKIPPABLE):
+                remember_email = form.email.data.lower().strip() if form.remember.data else None
+                crypto_service.log_audit_action(
+                    action='user_login',
+                    acting_user=user, acting_role=user.role,
+                    details='User logged in (password only; email 2FA skipped — DEV MODE)',
+                    ip_address=ip_address,
+                )
+                return _establish_session(user, remember_email)
+
             # First factor (password) passed. Do NOT log in yet — start the
             # email second factor. Stash only the user id, the remember-email
             # preference, and a timestamp; never the password.

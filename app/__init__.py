@@ -6,6 +6,7 @@ from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
 from flask_talisman import Talisman
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -18,12 +19,23 @@ talisman = Talisman()
 def create_app(config_name=None):
     app = Flask(__name__)
 
+    # nginx is the only process allowed to reach gunicorn (compose.prod.yaml
+    # exposes web:5000 only on the internal docker network, never published
+    # to the host), so it is the single trusted proxy hop. Without this,
+    # request.remote_addr / request.is_secure reflect nginx's own address and
+    # scheme, breaking per-client rate limiting and audit-log IP addresses,
+    # and making every client share one Flask-Limiter bucket.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
     import os
     if config_name is None:
         config_name = os.getenv('FLASK_ENV', 'development')
 
-    from app.config import config
+    from app.config import config, validate_production_secrets
     app.config.from_object(config.get(config_name, config['default']))
+
+    if config_name == 'production':
+        validate_production_secrets()
 
     db.init_app(app)
     login_manager.init_app(app)
@@ -142,9 +154,11 @@ def create_app(config_name=None):
     @app.before_request
     def enforce_https():
         from flask import request, redirect
-        if app.config.get('SESSION_COOKIE_SECURE'):
-            if not request.is_secure and request.headers.get('X-Forwarded-Proto') != 'https':
-                return redirect(request.url.replace('http://', 'https://'), code=301)
+        # request.is_secure is accurate now that ProxyFix (x_proto=1) rewrites
+        # the WSGI environ from nginx's X-Forwarded-Proto — no need to also
+        # check the header manually here.
+        if app.config.get('SESSION_COOKIE_SECURE') and not request.is_secure:
+            return redirect(request.url.replace('http://', 'https://'), code=301)
 
     @app.errorhandler(404)
     def not_found(e):
