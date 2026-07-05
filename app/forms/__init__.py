@@ -96,7 +96,7 @@ class PasswordResetForm(FlaskForm):
 # ---------------------------------------------------------------------------
 
 class ReportForm(FlaskForm):
-    title = StringField('Title', validators=[DataRequired(), Length(max=255)])
+    title = StringField('Title', validators=[DataRequired(), Length(max=100)])
     description = TextAreaField('Description', validators=[DataRequired(), Length(max=10000)])
     category = SelectField('Category', choices=[
         ('academic_misconduct', 'Academic Misconduct'),

@@ -35,8 +35,8 @@ class ReportService:
             return None, "Invalid severity level"
         title = InputValidator.sanitize_html(title)
         description = InputValidator.sanitize_html(description)
-        if len(title) > 255:
-            return None, "Title must be 255 characters or less"
+        if len(title) > 100:
+            return None, "Title must be 100 characters or less"
         if len(description) > 10000:
             return None, "Description must be 10000 characters or less"
 

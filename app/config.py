@@ -135,3 +135,8 @@ def validate_production_secrets():
         )
     if os.environ.get('SECRET_KEY') == 'dev-secret-key-change-in-production':
         raise RuntimeError('SECRET_KEY is set to the insecure development default')
+    # ProductionConfig.DEBUG is already hardcoded False, which alone makes the
+    # auth.py OTP-skip gate inert — but fail loudly at boot anyway if the flag
+    # made it into a prod env, rather than relying silently on that gate.
+    if os.environ.get('DISABLE_STAFF_OTP', 'false').lower() == 'true':
+        raise RuntimeError('DISABLE_STAFF_OTP must not be set in production')

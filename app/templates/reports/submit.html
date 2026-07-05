@@ -2,20 +2,6 @@
 {% block title %}Submit Report - SITinform{% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/upload.js') }}"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const description = document.getElementById('{{ form.description.id }}');
-    const counter = document.getElementById('description-counter');
-    if (!description || !counter) return;
-
-    function syncCounter() {
-        counter.textContent = `${description.value.length} / 5000`;
-    }
-
-    description.addEventListener('input', syncCounter);
-    syncCounter();
-});
-</script>
 {% endblock %}
 {% block content %}
 <div class="submit-report-page">
@@ -46,12 +32,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     </label>
                     <div class="submit-report-page__input-wrap">
                         <span class="submit-report-page__input-icon"><i class="fas fa-text-width"></i></span>
-                        {{ form.title(class="form-control submit-report-page__input" ~ (" is-invalid" if form.title.errors else ""), placeholder="Enter a clear and concise title") }}
+                        {{ form.title(class="form-control submit-report-page__input" ~ (" is-invalid" if form.title.errors else ""), maxlength=100, placeholder="Enter a clear and concise title") }}
                     </div>
                     {% if form.title.errors %}
                     <div class="invalid-feedback d-block">{{ form.title.errors[0] }}</div>
                     {% endif %}
-                    <div class="submit-report-page__help">Briefly summarise the issue you want to report.</div>
+                    <div class="submit-report-page__field-footer">
+                        <span class="submit-report-page__help">Briefly summarise the issue you want to report.</span>
+                        <span id="title-counter" class="submit-report-page__counter">0 / 100</span>
+                    </div>
                 </div>
 
                 <div class="submit-report-page__field">
@@ -61,14 +50,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     </label>
                     <div class="submit-report-page__textarea-wrap">
                         <span class="submit-report-page__textarea-icon"><i class="fas fa-align-left"></i></span>
-                        {{ form.description(class="form-control submit-report-page__textarea" ~ (" is-invalid" if form.description.errors else ""), rows=6, placeholder="Provide detailed information about the issue") }}
+                        {{ form.description(class="form-control submit-report-page__textarea" ~ (" is-invalid" if form.description.errors else ""), rows=6, maxlength=10000, placeholder="Provide detailed information about the issue") }}
                     </div>
                     {% if form.description.errors %}
                     <div class="invalid-feedback d-block">{{ form.description.errors[0] }}</div>
                     {% endif %}
                     <div class="submit-report-page__field-footer">
                         <span class="submit-report-page__help">Include relevant dates, times, people involved, and any other important details.</span>
-                        <span id="description-counter" class="submit-report-page__counter">0 / 5000</span>
+                        <span id="description-counter" class="submit-report-page__counter">0 / 10000</span>
                     </div>
                 </div>
 

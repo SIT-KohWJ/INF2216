@@ -175,3 +175,22 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
+
+// Live character counters for the title and description fields.
+document.addEventListener('DOMContentLoaded', function () {
+    function wireCounter(fieldId, counterId, limit) {
+        const field = document.getElementById(fieldId);
+        const counter = document.getElementById(counterId);
+        if (!field || !counter) return;
+
+        function sync() {
+            counter.textContent = `${field.value.length} / ${limit}`;
+        }
+
+        field.addEventListener('input', sync);
+        sync();
+    }
+
+    wireCounter('title', 'title-counter', 100);
+    wireCounter('description', 'description-counter', 10000);
+});
