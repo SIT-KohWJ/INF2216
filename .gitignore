@@ -29,3 +29,6 @@ instance/
 .idea/
 .vscode/
 *.log
+
+#testing pdfs
+*.pdf

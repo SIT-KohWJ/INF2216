@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify
 from flask_login import login_required, current_user
 from app.services.report_service import ReportService
 from app.services.audit_service import AuditService
+from app.utils.decorators import role_required
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -26,16 +27,29 @@ def get_report(report_id):
 
 @api_bp.route('/audit', methods=['GET'])
 @login_required
+@role_required('report_admin', 'system_admin')
 def get_audit_logs():
-    logs = AuditService.get_audit_logs(limit=100)
+    if current_user.role == 'report_admin':
+        logs = AuditService.get_report_audit_logs(limit=100)
+    else:  # system_admin
+        logs = AuditService.get_system_audit_logs(limit=100)
     return jsonify({'logs': [{'id': log.id, 'action': log.action, 'timestamp': log.timestamp.isoformat() if log.timestamp else None, 'acting_role': log.acting_role, 'details': log.details} for log in logs]})
 
 
 @api_bp.route('/stats', methods=['GET'])
 @login_required
+@role_required('report_admin', 'system_admin')
 def get_stats():
     from app.models import Report
-    stats = {'total': Report.query.count(), 'received': Report.query.filter_by(status='Received').count(), 'triaged': Report.query.filter_by(status='Triaged').count(), 'investigating': Report.query.filter_by(status='Investigating').count(), 'resolved': Report.query.filter_by(status='Resolved').count()}
+    stats = {
+        'total': Report.query.count(),
+        'received': Report.query.filter_by(status='Received').count(),
+        'triaged': Report.query.filter_by(status='Triaged').count(),
+        'planning': Report.query.filter_by(status='Planning').count(),
+        'investigating': Report.query.filter_by(status='Investigating').count(),
+        'under_review': Report.query.filter_by(status='Under Review').count(),
+        'closed': Report.query.filter_by(status='Closed').count()
+    }
     return jsonify(stats)
 
 

@@ -1,27 +1,28 @@
 {% extends "base.html" %}
-{% block title %}Delete Account - SITinform{% endblock %}
+{% block title %}Request Account Deletion - SITinform{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
+    <div class="col-md-6 col-lg-5">
         <div class="card shadow border-danger">
             <div class="card-header bg-danger text-white">
-                <h4 class="mb-0"><i class="fas fa-trash-alt"></i> Delete Account</h4>
+                <h4 class="mb-0"><i class="fas fa-trash-alt"></i> Request Account Deletion</h4>
             </div>
             <div class="card-body">
                 <div class="alert alert-warning">
-                    <strong>Warning:</strong> This action cannot be undone.
+                    <strong>Note:</strong> A System Administrator must review and approve your request.
                 </div>
-                <p>When you delete your account:</p>
+                <p>When you request account deletion:</p>
                 <ul>
-                    <li>Your personal information will be removed</li>
-                    <li>Your submitted reports will be <strong>preserved</strong></li>
-                    <li>Audit logs will be <strong>preserved</strong></li>
+                    <li>Your account is <strong>deactivated immediately</strong> and you will be logged out</li>
+                    <li>A System Administrator will review your request</li>
+                    <li>On approval, your personal information is removed</li>
+                    <li>Your submitted reports and audit logs are <strong>preserved</strong> and remain anonymous</li>
                 </ul>
-                <form method="POST" action="{{ url_for('auth.delete_account') }}">
+                <form method="POST" action="{{ url_for('auth.delete_account') }}" data-confirm="Submit an account deletion request? You will be logged out immediately.">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-danger btn-lg" onclick="return confirm('Are you sure?')">
-                            <i class="fas fa-trash-alt"></i> Delete My Account
+                        <button type="submit" class="btn btn-danger btn-lg">
+                            <i class="fas fa-paper-plane"></i> Request Deletion
                         </button>
                     </div>
                 </form>

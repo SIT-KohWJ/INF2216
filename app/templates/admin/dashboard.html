@@ -2,85 +2,248 @@
 {% block title %}Admin Dashboard - SITinform{% endblock %}
 {% block content %}
 {% if current_user.role == 'report_admin' %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h2><i class="fas fa-file-alt"></i> Report Admin Dashboard</h2>
-        <p class="text-muted">Case overview and report management.</p>
-    </div>
-</div>
-<div class="row mb-4">
-    <div class="col-md-3 mb-3"><div class="card text-white bg-primary"><div class="card-body"><h5>Total Reports</h5><p class="fs-3">{{ total_reports }}</p></div></div></div>
-    <div class="col-md-3 mb-3"><div class="card text-white bg-info"><div class="card-body"><h5>Received</h5><p class="fs-3">{{ received_reports }}</p></div></div></div>
-    <div class="col-md-3 mb-3"><div class="card text-white bg-warning"><div class="card-body"><h5>Investigating</h5><p class="fs-3">{{ investigating_reports }}</p></div></div></div>
-    <div class="col-md-3 mb-3"><div class="card text-white bg-success"><div class="card-body"><h5>Resolved</h5><p class="fs-3">{{ resolved_reports }}</p></div></div></div>
-</div>
-<div class="row">
-    <div class="col-md-8">
-        <div class="card mb-4">
-            <div class="card-header"><h5 class="mb-0"><i class="fas fa-history"></i> Recent Report Activity</h5></div>
-            <div class="card-body">
+<div class="ra-dashboard">
+    <section class="ra-dashboard__hero">
+        <div class="ra-dashboard__hero-icon">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <div>
+            <h1 class="ra-dashboard__title">Report Admin Dashboard</h1>
+            <p class="ra-dashboard__subtitle">Case overview and report management.</p>
+        </div>
+    </section>
+
+    <section class="ra-dashboard__stats">
+        <article class="ra-stat-card ra-stat-card--blue">
+            <div class="ra-stat-card__icon"><i class="fas fa-chart-bar"></i></div>
+            <div class="ra-stat-card__title">Total Cases</div>
+            <div class="ra-stat-card__value">{{ total_reports }}</div>
+            <div class="ra-stat-card__copy">All cases in the system</div>
+        </article>
+
+        <article class="ra-stat-card ra-stat-card--cyan">
+            <div class="ra-stat-card__icon"><i class="fas fa-inbox"></i></div>
+            <div class="ra-stat-card__title">Received</div>
+            <div class="ra-stat-card__value">{{ received_reports }}</div>
+            <div class="ra-stat-card__copy">New reports received</div>
+        </article>
+
+        <article class="ra-stat-card ra-stat-card--slate">
+            <div class="ra-stat-card__icon"><i class="fas fa-filter"></i></div>
+            <div class="ra-stat-card__title">Triaged</div>
+            <div class="ra-stat-card__value">{{ triaged_reports }}</div>
+            <div class="ra-stat-card__copy">Awaiting initial assessment</div>
+        </article>
+
+        <article class="ra-stat-card ra-stat-card--navy">
+            <div class="ra-stat-card__icon"><i class="fas fa-clipboard-list"></i></div>
+            <div class="ra-stat-card__title">Planning</div>
+            <div class="ra-stat-card__value">{{ planning_reports }}</div>
+            <div class="ra-stat-card__copy">Cases in planning</div>
+        </article>
+
+        <article class="ra-stat-card ra-stat-card--amber">
+            <div class="ra-stat-card__icon"><i class="fas fa-search"></i></div>
+            <div class="ra-stat-card__title">Investigating</div>
+            <div class="ra-stat-card__value">{{ investigating_reports }}</div>
+            <div class="ra-stat-card__copy">Active investigations</div>
+        </article>
+
+        <article class="ra-stat-card ra-stat-card--purple">
+            <div class="ra-stat-card__icon"><i class="fas fa-balance-scale"></i></div>
+            <div class="ra-stat-card__title">Under Review</div>
+            <div class="ra-stat-card__value">{{ under_review_reports }}</div>
+            <div class="ra-stat-card__copy">Cases awaiting review</div>
+        </article>
+
+        <article class="ra-stat-card ra-stat-card--green">
+            <div class="ra-stat-card__icon"><i class="fas fa-check-circle"></i></div>
+            <div class="ra-stat-card__title">Closed</div>
+            <div class="ra-stat-card__value">{{ closed_reports }}</div>
+            <div class="ra-stat-card__copy">Completed cases</div>
+        </article>
+    </section>
+
+    <div class="ra-dashboard__grid">
+        <section class="ra-dashboard__panel">
+            <div class="ra-dashboard__panel-header">
+                <div class="ra-dashboard__panel-title">
+                    <i class="fas fa-history"></i>
+                    <span>Recent Report Activity</span>
+                </div>
+                <a href="{{ url_for('admin.audit_logs') }}" class="btn ra-dashboard__header-btn">
+                    <span>View All Activity</span>
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+            <div class="ra-dashboard__activity-list">
                 {% for log in recent_activity %}
-                <div class="border-bottom pb-2 mb-2">
-                    <span class="{{ get_action_css(log.action) }}"><i class="fas fa-circle"></i></span>
-                    <strong>{{ log.action }}</strong> - {{ log.details or '-' }}
-                    <br><small class="text-muted">{{ format_datetime(log.timestamp) }} | {{ log.acting_role }}</small>
+                <div class="ra-dashboard__activity-item">
+                    <div class="ra-dashboard__activity-icon {% if log.action == 'report_submission' %}ra-dashboard__activity-icon--blue{% else %}ra-dashboard__activity-icon--neutral{% endif %}">
+                        {% if log.action == 'report_submission' %}
+                        <i class="far fa-file-alt"></i>
+                        {% else %}
+                        <i class="fas fa-eye"></i>
+                        {% endif %}
+                    </div>
+                    <div class="ra-dashboard__activity-content">
+                        <div class="ra-dashboard__activity-line">
+                            <strong>{{ log.action }}</strong>
+                            <span>- {{ log.details or '-' }}</span>
+                        </div>
+                        <div class="ra-dashboard__activity-meta">{{ format_datetime(log.timestamp) }} | {{ log.acting_role }}</div>
+                    </div>
                 </div>
                 {% else %}
-                <p class="text-muted">No recent activity.</p>
+                <p class="text-muted mb-0">No recent activity.</p>
                 {% endfor %}
             </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0">Quick Actions</h5></div>
-            <div class="card-body">
-                <a href="{{ url_for('admin.manage_reports') }}" class="btn btn-outline-primary w-100 mb-2"><i class="fas fa-file-alt"></i> Manage Reports</a>
-                <a href="{{ url_for('admin.audit_logs') }}" class="btn btn-outline-info w-100"><i class="fas fa-clipboard-list"></i> Audit Logs</a>
+        </section>
+
+        <section class="ra-dashboard__panel ra-dashboard__panel--actions">
+            <div class="ra-dashboard__panel-header">
+                <div class="ra-dashboard__panel-title">
+                    <i class="fas fa-bolt"></i>
+                    <span>Quick Actions</span>
+                </div>
             </div>
-        </div>
+
+            <div class="ra-dashboard__action-list">
+                <a href="{{ url_for('admin.manage_reports') }}" class="ra-dashboard__action-card">
+                    <div class="ra-dashboard__action-icon ra-dashboard__action-icon--blue"><i class="fas fa-file-alt"></i></div>
+                    <div class="ra-dashboard__action-copy">
+                        <div class="ra-dashboard__action-title">Manage Reports</div>
+                        <div class="ra-dashboard__action-text">View, filter and manage all reports</div>
+                    </div>
+                    <div class="ra-dashboard__action-arrow"><i class="fas fa-chevron-right"></i></div>
+                </a>
+
+                <a href="{{ url_for('admin.audit_logs') }}" class="ra-dashboard__action-card">
+                    <div class="ra-dashboard__action-icon ra-dashboard__action-icon--cyan"><i class="fas fa-clipboard-list"></i></div>
+                    <div class="ra-dashboard__action-copy">
+                        <div class="ra-dashboard__action-title">Audit Logs</div>
+                        <div class="ra-dashboard__action-text">Review report audit history</div>
+                    </div>
+                    <div class="ra-dashboard__action-arrow"><i class="fas fa-chevron-right"></i></div>
+                </a>
+            </div>
+        </section>
     </div>
 </div>
 
 {% else %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h2><i class="fas fa-cog"></i> System Admin Dashboard</h2>
-        <p class="text-muted">User and platform management.</p>
-    </div>
-</div>
-<div class="row mb-4">
-    <div class="col-md-4 mb-3"><div class="card text-white bg-primary"><div class="card-body"><h5>Total Users</h5><p class="fs-3">{{ total_users }}</p></div></div></div>
-    <div class="col-md-4 mb-3"><div class="card text-white bg-success"><div class="card-body"><h5>Active</h5><p class="fs-3">{{ active_users }}</p></div></div></div>
-    <div class="col-md-4 mb-3"><div class="card text-white bg-danger"><div class="card-body"><h5>Suspended</h5><p class="fs-3">{{ suspended_users }}</p></div></div></div>
-</div>
-<div class="row">
-    <div class="col-md-8">
-        <div class="card mb-4">
-            <div class="card-header"><h5 class="mb-0"><i class="fas fa-history"></i> Recent System Activity</h5></div>
-            <div class="card-body">
+<div class="sys-dashboard">
+    <section class="sys-dashboard__hero">
+        <div class="sys-dashboard__hero-icon">
+            <i class="fas fa-cog"></i>
+        </div>
+        <div>
+            <h1 class="sys-dashboard__title">System Admin Dashboard</h1>
+            <p class="sys-dashboard__subtitle">User and platform management.</p>
+        </div>
+    </section>
+
+    <section class="sys-dashboard__stats">
+        <article class="sys-stat-card sys-stat-card--blue">
+            <div class="sys-stat-card__icon"><i class="fas fa-users"></i></div>
+            <div class="sys-stat-card__title">Total Users</div>
+            <div class="sys-stat-card__value">{{ total_users }}</div>
+            <div class="sys-stat-card__copy">All user accounts</div>
+        </article>
+
+        <article class="sys-stat-card sys-stat-card--green">
+            <div class="sys-stat-card__icon"><i class="fas fa-user-check"></i></div>
+            <div class="sys-stat-card__title">Active</div>
+            <div class="sys-stat-card__value">{{ active_users }}</div>
+            <div class="sys-stat-card__copy">Accounts currently enabled</div>
+        </article>
+
+        <article class="sys-stat-card sys-stat-card--red">
+            <div class="sys-stat-card__icon"><i class="fas fa-user-slash"></i></div>
+            <div class="sys-stat-card__title">Suspended</div>
+            <div class="sys-stat-card__value">{{ suspended_users }}</div>
+            <div class="sys-stat-card__copy">Restricted accounts</div>
+        </article>
+    </section>
+
+    <div class="sys-dashboard__grid">
+        <section class="sys-dashboard__panel">
+            <div class="sys-dashboard__panel-header">
+                <div class="sys-dashboard__panel-title">
+                    <i class="fas fa-history"></i>
+                    <span>Recent System Activity</span>
+                </div>
+                <a href="{{ url_for('admin.system_audit_logs') }}" class="btn sys-dashboard__header-btn">
+                    <span>View All Activity</span>
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+            <div class="sys-dashboard__activity-list">
                 {% for log in recent_activity %}
-                <div class="border-bottom pb-2 mb-2">
-                    <span class="{{ get_action_css(log.action) }}"><i class="fas fa-circle"></i></span>
-                    <strong>{{ log.action }}</strong> - {{ log.details or '-' }}
-                    <br><small class="text-muted">{{ format_datetime(log.timestamp) }} | {{ log.acting_role }}</small>
+                <div class="sys-dashboard__activity-item">
+                    <div class="sys-dashboard__activity-icon {{ get_action_css(log.action) }}">
+                        <i class="fas fa-circle"></i>
+                    </div>
+                    <div class="sys-dashboard__activity-content">
+                        <div class="sys-dashboard__activity-line">
+                            <strong>{{ log.action }}</strong>
+                            <span>- {{ log.details or '-' }}</span>
+                        </div>
+                        <div class="sys-dashboard__activity-meta">{{ format_datetime(log.timestamp) }} | {{ log.acting_role }}</div>
+                    </div>
                 </div>
                 {% else %}
-                <p class="text-muted">No recent activity.</p>
+                <p class="text-muted mb-0">No recent activity.</p>
                 {% endfor %}
             </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0">Quick Actions</h5></div>
-            <div class="card-body">
-                <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-primary w-100 mb-2"><i class="fas fa-users"></i> Manage Users</a>
-                <a href="{{ url_for('admin.create_user') }}" class="btn btn-outline-secondary w-100 mb-2"><i class="fas fa-user-plus"></i> Create User</a>
-                <a href="{{ url_for('admin.system_audit_logs') }}" class="btn btn-outline-info w-100 mb-2"><i class="fas fa-clipboard-list"></i> System Audit Logs</a>
-                <a href="{{ url_for('admin.platform_config') }}" class="btn btn-outline-warning w-100"><i class="fas fa-sliders-h"></i> Platform Config</a>
+        </section>
+
+        <section class="sys-dashboard__panel sys-dashboard__panel--actions">
+            <div class="sys-dashboard__panel-header">
+                <div class="sys-dashboard__panel-title">
+                    <i class="fas fa-bolt"></i>
+                    <span>Quick Actions</span>
+                </div>
             </div>
-        </div>
+
+            <div class="sys-dashboard__action-list">
+                <a href="{{ url_for('admin.manage_users') }}" class="sys-dashboard__action-card">
+                    <div class="sys-dashboard__action-icon sys-dashboard__action-icon--blue"><i class="fas fa-users"></i></div>
+                    <div class="sys-dashboard__action-copy">
+                        <div class="sys-dashboard__action-title">Manage Users</div>
+                        <div class="sys-dashboard__action-text">Review, suspend, and manage user accounts</div>
+                    </div>
+                    <div class="sys-dashboard__action-arrow"><i class="fas fa-chevron-right"></i></div>
+                </a>
+
+                <a href="{{ url_for('admin.create_user') }}" class="sys-dashboard__action-card">
+                    <div class="sys-dashboard__action-icon sys-dashboard__action-icon--cyan"><i class="fas fa-user-plus"></i></div>
+                    <div class="sys-dashboard__action-copy">
+                        <div class="sys-dashboard__action-title">Create User</div>
+                        <div class="sys-dashboard__action-text">Provision new platform accounts</div>
+                    </div>
+                    <div class="sys-dashboard__action-arrow"><i class="fas fa-chevron-right"></i></div>
+                </a>
+
+                <a href="{{ url_for('admin.system_audit_logs') }}" class="sys-dashboard__action-card">
+                    <div class="sys-dashboard__action-icon sys-dashboard__action-icon--navy"><i class="fas fa-clipboard-list"></i></div>
+                    <div class="sys-dashboard__action-copy">
+                        <div class="sys-dashboard__action-title">System Audit Logs</div>
+                        <div class="sys-dashboard__action-text">Inspect platform-wide audit history</div>
+                    </div>
+                    <div class="sys-dashboard__action-arrow"><i class="fas fa-chevron-right"></i></div>
+                </a>
+
+                <a href="{{ url_for('admin.platform_config') }}" class="sys-dashboard__action-card">
+                    <div class="sys-dashboard__action-icon sys-dashboard__action-icon--amber"><i class="fas fa-sliders-h"></i></div>
+                    <div class="sys-dashboard__action-copy">
+                        <div class="sys-dashboard__action-title">Platform Config</div>
+                        <div class="sys-dashboard__action-text">Review security and platform settings</div>
+                    </div>
+                    <div class="sys-dashboard__action-arrow"><i class="fas fa-chevron-right"></i></div>
+                </a>
+            </div>
+        </section>
     </div>
 </div>
 {% endif %}

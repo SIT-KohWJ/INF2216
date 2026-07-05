@@ -1,37 +1,112 @@
 {% extends "base.html" %}
 {% block title %}Submit Report - SITinform{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0"><i class="fas fa-file-alt"></i> Submit New Report</h4>
+<div class="submit-report-page">
+    <div class="submit-report-page__shell">
+        <a href="{{ url_for('reports.dashboard') }}" class="submit-report-page__back-link">
+            <i class="fas fa-arrow-left"></i>
+            <span>Back to Dashboard</span>
+        </a>
+
+        <section class="submit-report-page__panel">
+            <div class="submit-report-page__hero">
+                <div class="submit-report-page__hero-icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <div>
+                    <h1 class="submit-report-page__title">Submit New Report</h1>
+                    <p class="submit-report-page__subtitle mb-0">Provide as much detail as possible to help us investigate the issue.</p>
+                </div>
             </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('reports.submit_report') }}" enctype="multipart/form-data">
-                    {{ form.hidden_tag() }}
-                    <div class="mb-3">
-                        {{ form.title.label(class="form-label") }}
-                        {{ form.title(class="form-control") }}
+
+            <form method="POST" action="{{ url_for('reports.submit_report') }}" enctype="multipart/form-data" novalidate>
+                {{ form.hidden_tag() }}
+
+                <div class="submit-report-page__field">
+                    <label for="{{ form.title.id }}" class="submit-report-page__label">
+                        <span>Title</span>
+                        <span class="submit-report-page__required">*</span>
+                    </label>
+                    <div class="submit-report-page__input-wrap">
+                        <span class="submit-report-page__input-icon"><i class="fas fa-text-width"></i></span>
+                        {{ form.title(class="form-control submit-report-page__input" ~ (" is-invalid" if form.title.errors else ""), maxlength=100, placeholder="Enter a clear and concise title") }}
                     </div>
-                    <div class="mb-3">
-                        {{ form.description.label(class="form-label") }}
-                        {{ form.description(class="form-control", rows=6) }}
+                    {% if form.title.errors %}
+                    <div class="invalid-feedback d-block">{{ form.title.errors[0] }}</div>
+                    {% endif %}
+                    <div class="submit-report-page__field-footer">
+                        <span class="submit-report-page__help">Briefly summarise the issue you want to report.</span>
+                        <span id="title-counter" class="submit-report-page__counter">0 / 100</span>
                     </div>
-                    <div class="mb-3">
-                        {{ form.category.label(class="form-label") }}
-                        {{ form.category(class="form-select") }}
+                </div>
+
+                <div class="submit-report-page__field">
+                    <label for="{{ form.description.id }}" class="submit-report-page__label">
+                        <span>Description</span>
+                        <span class="submit-report-page__required">*</span>
+                    </label>
+                    <div class="submit-report-page__textarea-wrap">
+                        <span class="submit-report-page__textarea-icon"><i class="fas fa-align-left"></i></span>
+                        {{ form.description(class="form-control submit-report-page__textarea" ~ (" is-invalid" if form.description.errors else ""), rows=6, maxlength=10000, placeholder="Provide detailed information about the issue") }}
                     </div>
-                    <div class="mb-3">
-                        {{ form.evidence.label(class="form-label") }}
-                        {{ form.evidence(class="form-control", multiple=true) }}
-                        <div class="form-text">Allowed: PDF, DOCX, PNG, JPG (max 10MB)</div>
+                    {% if form.description.errors %}
+                    <div class="invalid-feedback d-block">{{ form.description.errors[0] }}</div>
+                    {% endif %}
+                    <div class="submit-report-page__field-footer">
+                        <span class="submit-report-page__help">Include relevant dates, times, people involved, and any other important details.</span>
+                        <span id="description-counter" class="submit-report-page__counter">0 / 10000</span>
                     </div>
-                    <div class="d-grid">
-                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                </div>
+
+                <div class="submit-report-page__field">
+                    <label for="{{ form.category.id }}" class="submit-report-page__label">
+                        <span>Category</span>
+                        <span class="submit-report-page__required">*</span>
+                    </label>
+                    <div class="submit-report-page__select-wrap">
+                        <span class="submit-report-page__input-icon"><i class="fas fa-tags"></i></span>
+                        <select id="{{ form.category.id }}" name="{{ form.category.name }}" class="form-select submit-report-page__input submit-report-page__select{% if form.category.errors %} is-invalid{% endif %}">
+                            <option value="" {% if not form.category.data %}selected{% endif %}>Select a category</option>
+                            {% for value, label in form.category.choices %}
+                            <option value="{{ value }}" {% if form.category.data == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
-                </form>
-            </div>
+                    {% if form.category.errors %}
+                    <div class="invalid-feedback d-block">{{ form.category.errors[0] }}</div>
+                    {% endif %}
+                    <div class="submit-report-page__help">Choose the category that best fits your report.</div>
+                </div>
+
+                <div class="submit-report-page__field">
+                    <label class="submit-report-page__label" for="evidenceInput">Evidence Files</label>
+                    <div class="submit-report-page__help submit-report-page__help--top">Upload any files that may support your report (optional)</div>
+                    {{ form.evidence(id="evidenceInput", multiple=true, accept=".pdf,.docx,.png,.jpg,.jpeg", class="d-none") }}
+
+                    <div id="dropzone" class="submit-report-page__dropzone">
+                        <div class="submit-report-page__dropzone-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <p class="submit-report-page__dropzone-title mb-2">Drag and drop files here or <span id="dropzone-browse">browse</span></p>
+                        <small class="submit-report-page__dropzone-copy">Up to 5 files • PDF, DOCX, PNG, JPG • Max 10MB each</small>
+                    </div>
+
+                    <div id="file-error" class="alert alert-danger mt-3 d-none"></div>
+                    <div id="file-list" class="mt-3"></div>
+                </div>
+
+                <div class="d-grid">
+                    {{ form.submit(class="btn submit-report-page__submit-btn") }}
+                </div>
+            </form>
+        </section>
+
+        <div class="submit-report-page__security">
+            <i class="fas fa-lock"></i>
+            <span>Your identity is protected. All submissions are encrypted and handled confidentially.</span>
         </div>
     </div>
 </div>

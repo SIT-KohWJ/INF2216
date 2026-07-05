@@ -1,33 +1,72 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_mail import Mail
+from flask_sqlalchemy import SQLAlchemy
+from flask_talisman import Talisman
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 db = SQLAlchemy()
 login_manager = LoginManager()
 limiter = Limiter(key_func=get_remote_address)
 csrf = CSRFProtect()
+mail = Mail()
+talisman = Talisman()
 
 
 def create_app(config_name=None):
     app = Flask(__name__)
 
-    # When no explicit config is passed (e.g. gunicorn -> wsgi:app), pick it
-    # from FLASK_ENV so compose.prod.yaml (FLASK_ENV=production) gets the
-    # hardened ProductionConfig and local dev gets DevelopmentConfig.
+    # nginx is the only process allowed to reach gunicorn (compose.prod.yaml
+    # exposes web:5000 only on the internal docker network, never published
+    # to the host), so it is the single trusted proxy hop. Without this,
+    # request.remote_addr / request.is_secure reflect nginx's own address and
+    # scheme, breaking per-client rate limiting and audit-log IP addresses,
+    # and making every client share one Flask-Limiter bucket.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
     import os
     if config_name is None:
         config_name = os.getenv('FLASK_ENV', 'development')
 
-    from app.config import config
+    from app.config import config, validate_production_secrets
     app.config.from_object(config.get(config_name, config['default']))
+
+    if config_name == 'production':
+        validate_production_secrets()
 
     db.init_app(app)
     login_manager.init_app(app)
     limiter.init_app(app)
     csrf.init_app(app)
+    mail.init_app(app)
+
+    # Security response headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options,
+    # X-XSS-Protection, Referrer-Policy) — the app-level equivalent of Node's
+    # "helmet", so headers apply in dev/test too, not just behind nginx in prod.
+    # force_https / session_cookie_secure are left to this app's own
+    # enforce_https before_request and app/config.py, so Talisman doesn't fight
+    # them or force-redirect during tests (which don't run over TLS).
+    talisman.init_app(
+        app,
+        force_https=False,
+        session_cookie_secure=False,
+        frame_options='DENY',
+        x_xss_protection=True,
+        content_security_policy={
+            'default-src': "'self'",
+            'script-src': "'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+            'style-src': "'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+            'font-src': "'self' https://cdnjs.cloudflare.com data:",
+            'img-src': "'self' data:",
+        },
+    )
+
+    # Wire Flask-Mail into EmailService so OTP delivery works.
+    from app.services.email_service import EmailService
+    EmailService.init_app(mail)
 
     from app.services.crypto_service import init_crypto
     with app.app_context():
@@ -40,18 +79,21 @@ def create_app(config_name=None):
     app.jinja_env.globals['csrf_token'] = generate_csrf
 
     from app.routes.auth import auth_bp
+    from app.routes.otp import otp_bp
     from app.routes.reports import reports_bp
     from app.routes.admin import admin_bp
     from app.routes.api import api_bp
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(otp_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(api_bp)
 
     from app.utils.helpers import (
-        get_report_status_css, get_action_css, format_datetime, format_date,
-        get_role_display_name, get_category_display_name, truncate_text, format_bytes
+        format_bytes, format_date, format_datetime,
+        get_action_css, get_category_display_name, get_report_status_css,
+        get_role_display_name, truncate_text,
     )
     from app.services.crypto_service import crypto_service as _crypto_service
 
@@ -64,17 +106,47 @@ def create_app(config_name=None):
         get_category_display_name=get_category_display_name,
         truncate_text=truncate_text,
         format_bytes=format_bytes,
-        crypto_service=_crypto_service
+        crypto_service=_crypto_service,
     )
 
     @app.before_request
     def check_session_revoked():
-        from flask import session, redirect, url_for
+        from datetime import datetime as _dt
+        from flask import redirect, session, url_for
         from flask_login import current_user, logout_user
         from app.models import RevokedToken
-        if current_user.is_authenticated:
-            sid = session.get('_sid')
-            if sid and RevokedToken.is_token_revoked(sid):
+
+        if not current_user.is_authenticated:
+            return
+
+        sid = session.get('_sid')
+        created_at_str = session.get('_session_created_at')
+
+        if not sid or not created_at_str:
+            logout_user()
+            session.clear()
+            return redirect(url_for('auth.login'))
+
+        # Gate 1 — explicit per-session revocation (logout, password change on
+        # this specific session).
+        if RevokedToken.is_token_revoked(sid):
+            logout_user()
+            session.clear()
+            return redirect(url_for('auth.login'))
+
+        # Gate 2 — global session invalidation watermark (password reset or
+        # password change which bumps User.sessions_invalidated_at so that ALL
+        # concurrent sessions — including ones not caught by gate 1 — are
+        # expired).
+        invalidated_at = getattr(current_user, 'sessions_invalidated_at', None)
+        if invalidated_at:
+            try:
+                session_created = _dt.fromisoformat(created_at_str)
+                if invalidated_at > session_created:
+                    logout_user()
+                    session.clear()
+                    return redirect(url_for('auth.login'))
+            except (ValueError, TypeError):
                 logout_user()
                 session.clear()
                 return redirect(url_for('auth.login'))
@@ -82,9 +154,11 @@ def create_app(config_name=None):
     @app.before_request
     def enforce_https():
         from flask import request, redirect
-        if app.config.get('SESSION_COOKIE_SECURE'):
-            if not request.is_secure and request.headers.get('X-Forwarded-Proto') != 'https':
-                return redirect(request.url.replace('http://', 'https://'), code=301)
+        # request.is_secure is accurate now that ProxyFix (x_proto=1) rewrites
+        # the WSGI environ from nginx's X-Forwarded-Proto — no need to also
+        # check the header manually here.
+        if app.config.get('SESSION_COOKIE_SECURE') and not request.is_secure:
+            return redirect(request.url.replace('http://', 'https://'), code=301)
 
     @app.errorhandler(404)
     def not_found(e):
@@ -103,19 +177,20 @@ def create_app(config_name=None):
 
     @app.errorhandler(429)
     def ratelimit_handler(e):
-        from flask import flash, redirect, request, url_for
-        flash('Too many requests. Please try again later.', 'warning')
-        return redirect(request.referrer or url_for('auth.login'))
+        from flask import flash, redirect, url_for
+        flash('Too many requests. Please slow down and try again later.', 'warning')
+        # Never redirect to request.referrer — if the rate-limited URL IS the
+        # referrer, that creates an infinite redirect loop.
+        return redirect(url_for('auth.login'))
 
     @app.get('/healthz')
     def healthz():
-        """Liveness probe used by nginx and the deploy smoke check."""
         return {'status': 'ok'}, 200
 
-    # On Postgres the schema is owned by scripts/init.sql (it runs once on first
-    # DB boot), so create_all() is a harmless no-op there — it only fills in
-    # missing tables, which is what we want for the SQLite dev fallback.
     with app.app_context():
         db.create_all()
+        from app.services.report_service import ReportService
+        ReportService.migrate_investigation_plan_incident_when_column()
+        ReportService.normalize_report_statuses()
 
     return app

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Verify Login - SITinform{% endblock %}
+{% block content %}
+<div class="register-page">
+    <div class="register-page__shell register-page__shell--compact">
+        <div class="register-panel">
+            <div class="register-panel__hero">
+                <div class="register-panel__hero-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div>
+                    <h1 class="register-panel__title">Verify your login</h1>
+                    <p class="register-panel__subtitle mb-0">One more step to finish signing in securely.</p>
+                </div>
+            </div>
+
+            <div class="register-panel__body">
+                <p class="auth-page-copy">
+                    Enter the 6-digit verification code we
+                    emailed to <span class="auth-highlight">{{ masked_email }}</span>.
+                    It is valid for a few minutes and can be used only once.
+                </p>
+
+                <form method="POST" autocomplete="off" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="register-field">
+                        <label for="{{ form.otp.id }}" class="register-label">
+                            <i class="fas fa-key"></i>
+                            <span>{{ form.otp.label.text }}</span>
+                        </label>
+                        {{ form.otp(class="form-control register-input auth-otp-input" ~ (" is-invalid" if form.otp.errors else ""),
+                                    placeholder="000000", maxlength="6", inputmode="numeric",
+                                    pattern="[0-9]{6}", autocomplete="one-time-code", autofocus=true) }}
+                        {% if form.otp.errors %}
+                        <div class="invalid-feedback d-block">{{ form.otp.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn register-submit-btn") }}
+                    </div>
+                </form>
+
+                <div class="auth-actions">
+                    <form method="POST" action="{{ url_for('auth.login_resend') }}">
+                        {{ form.csrf_token }}
+                        <button type="submit" class="auth-action-link">
+                            <i class="fas fa-rotate-right"></i> Didn&apos;t receive it? Resend code
+                        </button>
+                    </form>
+                    <a href="{{ url_for('auth.login') }}" class="auth-action-link">
+                        <i class="fas fa-arrow-left"></i> Cancel and return to login
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="register-page__footer">
+            <div class="register-page__footer-brand">
+                <i class="fas fa-shield-alt"></i>
+                <span>SITinform</span>
+            </div>
+            <p class="mb-0">Your voice matters. Reports are confidential.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

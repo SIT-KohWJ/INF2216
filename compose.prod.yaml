@@ -4,9 +4,7 @@
 # Key difference from the local compose.yaml: Postgres is NOT exposed to the
 # internet. It binds to the VM's loopback only, so it's reachable via an SSH
 # tunnel for admin/inspection but never directly from outside the VM.
-
 services:
-
   # ── PostgreSQL (private) ────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
@@ -18,11 +16,8 @@ services:
       POSTGRES_DB:       ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql   # runs ONCE on first boot
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
-      # 127.0.0.1 = the VM's loopback ONLY. Reachable via SSH tunnel, never the
-      # internet. The app does NOT use this — it reaches Postgres internally at
-      # db:5432 over the docker network below.
       - "127.0.0.1:5432:5432"
     networks:
       - backend
@@ -32,7 +27,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Flask app (add once you have app code + a Dockerfile) ───────────────────
+  # ── Flask app ───────────────────────────────────────────────────────────────
   web:
     build: .
     container_name: sitinform_web
@@ -40,32 +35,74 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      clamav:
+        condition: service_started   # not service_healthy — first-boot freshclam download can take minutes; app fails closed per-request until clamd is ready
     environment:
       DATABASE_URL:         postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       SECRET_KEY:           ${SECRET_KEY}
       HMAC_SECRET_KEY:      ${HMAC_SECRET_KEY}
       FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
       FLASK_ENV:            production
+      CLAMD_HOST:           clamav
     expose:
-      - "5000"             # internal only; nginx reaches it over the network
+      - "5000"
     networks:
       - backend
 
+  # ── ClamAV malware scanner (B7) ──────────────────────────────────────────────
+  clamav:
+    image: clamav/clamav:stable
+    platform: ${CLAMAV_PLATFORM:-linux/amd64}
+    container_name: sitinform_clamav
+    restart: always
+    volumes:
+      - clamav_data:/var/lib/clamav
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+
+  # ── Nginx reverse proxy ─────────────────────────────────────────────────────
   nginx:
     image: nginx:alpine
     container_name: sitinform_nginx
     restart: always
     depends_on:
       - web
+    command: >
+      /bin/sh -c "rm -f /var/log/nginx/access.log /var/log/nginx/error.log
+      && nginx -g 'daemon off;'"
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./certs:/etc/nginx/certs:ro
+      - ./logs/nginx:/var/log/nginx
     networks:
       - backend
 
+  # ── Splunk SIEM ─────────────────────────────────────────────────────────────
+  splunk:
+    image: splunk/splunk:latest
+    container_name: sitinform_splunk
+    restart: always
+    environment:
+      SPLUNK_START_ARGS: "--accept-license"
+      SPLUNK_GENERAL_TERMS: "--accept-sgt-current-at-splunk-com"
+      SPLUNK_PASSWORD: ${SPLUNK_PASSWORD}
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - splunk_data:/opt/splunk/var
+      - /var/log/snort:/var/log/snort:ro
+      - ./logs/nginx:/var/log/nginx:ro
+    networks:
+      - backend
 
 networks:
   backend:
@@ -73,3 +110,5 @@ networks:
 
 volumes:
   postgres_data:
+  splunk_data:
+  clamav_data:

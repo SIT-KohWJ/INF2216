@@ -30,8 +30,21 @@ class Config:
     RATELIMIT_DEFAULT = "500 per day;100 per hour"
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
 
-    MAX_CONTENT_LENGTH = 10 * 1024 * 1024
+    # MAX_FILE_SIZE is this app's own per-file cap (checked explicitly in
+    # ReportService). MAX_CONTENT_LENGTH is Flask/Werkzeug's built-in cap on the
+    # ENTIRE request body — these are not the same thing, and reusing one value
+    # for both meant a legitimate multi-file submission (5 files x 10MB each)
+    # could never fit under a 10MB *total* limit. MAX_CONTENT_LENGTH must cover
+    # up to MAX_EVIDENCE_FILES (reports.py) files at MAX_FILE_SIZE each.
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    MAX_CONTENT_LENGTH = 5 * MAX_FILE_SIZE
     ALLOWED_EXTENSIONS = {'pdf', 'docx', 'png', 'jpg', 'jpeg'}
+
+    # Malware scanning (B7) — clamd, reached over the docker network.
+    MALWARE_SCAN_ENABLED = os.environ.get('MALWARE_SCAN_ENABLED', 'true').lower() == 'true'
+    CLAMD_HOST = os.environ.get('CLAMD_HOST', 'clamav')
+    CLAMD_PORT = int(os.environ.get('CLAMD_PORT', 3310))
+    CLAMD_TIMEOUT = int(os.environ.get('CLAMD_TIMEOUT', 10))
 
     # The deploy stack (compose/CI) provides FIELD_ENCRYPTION_KEY; the original
     # SITinform .env used ENCRYPTION_KEY. Accept either so both keep working.
@@ -47,14 +60,27 @@ class Config:
     MAX_FAILED_LOGIN_ATTEMPTS = 5
     LOCKOUT_DURATION_MINUTES = 15
 
-    PASSWORD_RESET_EXPIRY_MINUTES = 10
+    PASSWORD_RESET_EXPIRY_MINUTES = 15   # minutes after OTP verification
+    OTP_EXPIRY_SECONDS = int(os.environ.get('OTP_EXPIRY_SECONDS', 300))  # 5 minutes
+    OTP_MAX_ATTEMPTS = int(os.environ.get('OTP_MAX_ATTEMPTS', 5))
 
-    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.singaporetech.edu.sg')
+    # bcrypt work factor — 12 is the OWASP-recommended minimum (≈250 ms/hash)
+    BCRYPT_ROUNDS = int(os.environ.get('BCRYPT_ROUNDS', 12))
+
+    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp-relay.brevo.com')
     MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
     MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
-    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
-    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')   # Brevo login email
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')   # Brevo SMTP key (not account password)
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@sitinform.sit.singaporetech.edu.sg')
+
+    # Dev-only convenience: skip the email 2FA step at login for staff roles
+    # (system_admin, report_admin, investigator) so local testing doesn't
+    # require checking email every time. This flag alone does nothing — the
+    # login route additionally requires app.debug to be True, and
+    # ProductionConfig hardcodes DEBUG = False (not env-controlled), so
+    # setting this in a production .env by mistake has no effect.
+    DISABLE_STAFF_OTP = os.environ.get('DISABLE_STAFF_OTP', 'false').lower() == 'true'
 
 
 class DevelopmentConfig(Config):
@@ -66,6 +92,7 @@ class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     WTF_CSRF_ENABLED = False
+    MALWARE_SCAN_ENABLED = False  # no clamd container in the test environment
 
 
 class ProductionConfig(Config):
@@ -80,3 +107,36 @@ config = {
     'production': ProductionConfig,
     'default': DevelopmentConfig
 }
+
+
+def validate_production_secrets():
+    """Fail closed at boot if production secrets were never actually set.
+
+    The Config attributes above fall back to insecure/ephemeral defaults (a
+    hardcoded dev string, or a fresh os.urandom() value) so the app can still
+    boot in dev/test without a .env file. In production those fallbacks must
+    never be reached silently: a missing SECRET_KEY signs every session/CSRF
+    token with a publicly-known string, and a missing HMAC_SECRET_KEY /
+    ENCRYPTION_KEY hands each gunicorn worker process a DIFFERENT random key
+    (since --preload isn't used), making previously-encrypted report data
+    undecryptable on requests routed to a different worker and breaking the
+    whistleblower-anonymity HMAC non-deterministically across workers.
+
+    Checks os.environ directly rather than app.config, because by the time
+    app.config is populated the class-level fallback has already replaced
+    any missing value with a non-empty (but insecure) one.
+    """
+    missing = [name for name in ('SECRET_KEY', 'HMAC_SECRET_KEY') if not os.environ.get(name)]
+    if not (os.environ.get('FIELD_ENCRYPTION_KEY') or os.environ.get('ENCRYPTION_KEY')):
+        missing.append('FIELD_ENCRYPTION_KEY (or ENCRYPTION_KEY)')
+    if missing:
+        raise RuntimeError(
+            'Missing required production secret(s): ' + ', '.join(missing)
+        )
+    if os.environ.get('SECRET_KEY') == 'dev-secret-key-change-in-production':
+        raise RuntimeError('SECRET_KEY is set to the insecure development default')
+    # ProductionConfig.DEBUG is already hardcoded False, which alone makes the
+    # auth.py OTP-skip gate inert — but fail loudly at boot anyway if the flag
+    # made it into a prod env, rather than relying silently on that gate.
+    if os.environ.get('DISABLE_STAFF_OTP', 'false').lower() == 'true':
+        raise RuntimeError('DISABLE_STAFF_OTP must not be set in production')
