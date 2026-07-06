@@ -158,7 +158,10 @@ def verify_audit_integrity():
         abort(403)
     result = AuditService.verify_audit_integrity()
     if result['integrity_ok']:
-        flash('Audit log integrity verified successfully', 'success')
+        msg = 'Audit log integrity verified successfully'
+        if result.get('historical'):
+            msg += f' ({result["historical"]} historical entries signed by a rotated key)'
+        flash(msg, 'success')
     else:
         flash(f'Audit log integrity check failed: {result["invalid"]} invalid entries', 'danger')
     return redirect(url_for('admin.audit_logs'))
