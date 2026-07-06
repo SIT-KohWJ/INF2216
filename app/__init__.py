@@ -192,5 +192,9 @@ def create_app(config_name=None):
         from app.services.report_service import ReportService
         ReportService.migrate_investigation_plan_incident_when_column()
         ReportService.normalize_report_statuses()
+        # Apply admin-editable operational overrides on top of the static config
+        # so consumers reading current_app.config.get(...) see the live values.
+        from app.models import PlatformSetting
+        PlatformSetting.apply_overrides(app)
 
     return app

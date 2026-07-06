@@ -1,16 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Audit Logs - SITinform{% endblock %}
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12 d-flex justify-content-between align-items-center">
-        <div><h2><i class="fas fa-clipboard-list"></i> Audit Logs</h2></div>
-        <div>
-            {% if current_user.role == 'report_admin' %}
-            <a href="{{ url_for('admin.verify_audit_integrity') }}" class="btn btn-outline-info"><i class="fas fa-check-circle"></i> Verify Integrity</a>
-            <a href="{{ url_for('admin.export_audit_logs') }}" class="btn btn-outline-primary"><i class="fas fa-download"></i> Export</a>
-            {% endif %}
-        </div>
+<div class="page-header">
+    <div class="page-header__icon"><i class="fas fa-clipboard-list"></i></div>
+    <div class="page-header__body">
+        <h1 class="page-header__title">Audit Logs</h1>
+        <p class="page-header__subtitle">Tamper-evident record of activity across the platform.</p>
     </div>
+    {% if current_user.role == 'report_admin' %}
+    <div class="page-header__actions">
+        <a href="{{ url_for('admin.verify_audit_integrity') }}" class="btn btn-light"><i class="fas fa-check-circle"></i> Verify Integrity</a>
+        <a href="{{ url_for('admin.export_audit_logs') }}" class="btn btn-light"><i class="fas fa-download"></i> Export</a>
+    </div>
+    {% endif %}
 </div>
 <div class="row mb-3">
     <div class="col-12">
