@@ -44,6 +44,16 @@ services:
       FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
       FLASK_ENV:            production
       CLAMD_HOST:           clamav
+      # Brevo SMTP — required for login/registration 2FA OTP email delivery.
+      # Without these the app boots with no mail config, MAIL_USERNAME is empty,
+      # and every OTP send fails silently (email_service returns False), so
+      # whistleblowers never receive a login code.
+      MAIL_SERVER:          ${MAIL_SERVER:-smtp-relay.brevo.com}
+      MAIL_PORT:            ${MAIL_PORT:-587}
+      MAIL_USE_TLS:         ${MAIL_USE_TLS:-true}
+      MAIL_USERNAME:        ${MAIL_USERNAME}
+      MAIL_PASSWORD:        ${MAIL_PASSWORD}
+      MAIL_DEFAULT_SENDER:  ${MAIL_DEFAULT_SENDER:-noreply@sitinform.sit.singaporetech.edu.sg}
     expose:
       - "5000"
     volumes:
