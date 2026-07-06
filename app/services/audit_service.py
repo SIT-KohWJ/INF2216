@@ -100,15 +100,3 @@ class AuditService:
             action='key_rotation', acting_role='system',
             target_type='audit_log', details=details,
         )
-
-    @staticmethod
-    def get_suspicious_activity():
-        from sqlalchemy import func
-        failed_logins = db.session.query(AuditLog.acting_user_id, func.count(AuditLog.id).label('count')).filter(AuditLog.action == 'login_failed').group_by(AuditLog.acting_user_id).having(func.count(AuditLog.id) >= 3).all()
-        return [{'user_id': r[0], 'attempts': r[1]} for r in failed_logins]
-
-    @staticmethod
-    def get_activity_stats():
-        from sqlalchemy import func
-        stats = db.session.query(AuditLog.action, func.count(AuditLog.id)).group_by(AuditLog.action).all()
-        return {action: count for action, count in stats}

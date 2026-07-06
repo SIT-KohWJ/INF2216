@@ -180,15 +180,6 @@ def export_audit_logs():
     return response
 
 
-@admin_bp.route('/security')
-def security_monitoring():
-    if current_user.role != 'report_admin':
-        abort(403)
-    suspicious_activity = AuditService.get_suspicious_activity()
-    activity_stats = AuditService.get_activity_stats()
-    return render_template('admin/security_monitoring.html', suspicious_activity=suspicious_activity, activity_stats=activity_stats)
-
-
 # ── System Admin routes (FR-SA2 to FR-SA8) ───────────────────────────────────
 
 @admin_bp.route('/system_audit')
