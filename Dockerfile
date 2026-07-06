@@ -18,6 +18,10 @@ RUN pip install -r requirements.txt
 COPY . .
 
 # Defence in depth: never run the app as root.
+# Pre-create /app/instance so a fresh `web_instance` named volume inherits
+# appuser ownership (Docker seeds an empty volume from the mountpoint). Without
+# this the volume is root-owned and the app (uid 10001) can't write ecdsa_key.pem.
+# Defence in depth: never run the app as root.
 # instance/ must exist appuser-owned in the image: compose.prod.yaml mounts a
 # named volume there, and docker seeds a fresh volume with the image dir's
 # ownership — without this, the mount point is root-owned and the app cannot
