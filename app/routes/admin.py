@@ -312,20 +312,59 @@ def create_user():
     return render_template('admin/create_user.html', form=form)
 
 
-@admin_bp.route('/platform_config')
+# Maps editable form fields <-> the app.config keys they override. Keeping this
+# in one place ties the form, persistence and audit-log detail together.
+_EDITABLE_CONFIG = {
+    'max_failed_login_attempts': 'MAX_FAILED_LOGIN_ATTEMPTS',
+    'lockout_duration_minutes': 'LOCKOUT_DURATION_MINUTES',
+    'password_reset_expiry_minutes': 'PASSWORD_RESET_EXPIRY_MINUTES',
+}
+
+
+@admin_bp.route('/platform_config', methods=['GET', 'POST'])
 def platform_config():
     if current_user.role != 'system_admin':
         abort(403)
     from flask import current_app
-    config = {
+    from app import db
+    from app.models import PlatformSetting
+    from app.forms import PlatformConfigForm
+
+    form = PlatformConfigForm()
+
+    if form.validate_on_submit():
+        changes = []
+        for field_name, config_key in _EDITABLE_CONFIG.items():
+            new_val = form[field_name].data
+            old_val = current_app.config.get(config_key)
+            if new_val != old_val:
+                PlatformSetting.set_value(config_key, new_val)
+                current_app.config[config_key] = new_val  # apply live, no restart
+                changes.append(f'{config_key}: {old_val} -> {new_val}')
+        if changes:
+            db.session.commit()
+            crypto_service.log_audit_action(
+                action='platform_config_updated',
+                acting_user=current_user, acting_role=current_user.role,
+                target_type='platform_config',
+                details='; '.join(changes), ip_address=request.remote_addr,
+            )
+            flash('Platform settings updated.', 'success')
+        else:
+            flash('No changes to save.', 'info')
+        return redirect(url_for('admin.platform_config'))
+
+    # Prefill the editable fields from live config on GET (or re-show on error).
+    if request.method == 'GET':
+        for field_name, config_key in _EDITABLE_CONFIG.items():
+            form[field_name].data = current_app.config.get(config_key)
+
+    # Read-only, security-critical settings shown for reference but never editable.
+    readonly_config = {
         'max_content_length': current_app.config.get('MAX_CONTENT_LENGTH'),
         'allowed_extensions': list(current_app.config.get('ALLOWED_EXTENSIONS', set())),
         'session_cookie_secure': current_app.config.get('SESSION_COOKIE_SECURE'),
         'session_cookie_httponly': current_app.config.get('SESSION_COOKIE_HTTPONLY'),
         'session_cookie_samesite': current_app.config.get('SESSION_COOKIE_SAMESITE'),
-        'ratelimit_default': current_app.config.get('RATELIMIT_DEFAULT'),
-        'max_failed_login_attempts': current_app.config.get('MAX_FAILED_LOGIN_ATTEMPTS'),
-        'lockout_duration_minutes': current_app.config.get('LOCKOUT_DURATION_MINUTES'),
-        'password_reset_expiry_minutes': current_app.config.get('PASSWORD_RESET_EXPIRY_MINUTES'),
     }
-    return render_template('admin/platform_config.html', config=config)
+    return render_template('admin/platform_config.html', form=form, readonly_config=readonly_config)
