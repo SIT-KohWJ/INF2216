@@ -46,6 +46,13 @@ services:
       CLAMD_HOST:           clamav
     expose:
       - "5000"
+    volumes:
+      # Persist the ECDSA audit-signing key (instance/ecdsa_key.pem) across
+      # container rebuilds. Without this, `up --build` regenerates the key on
+      # every deploy, so audit rows signed by the previous key fail the
+      # integrity check. Postgres rows persist via postgres_data, so the key
+      # must persist too or the two drift apart.
+      - web_instance:/app/instance
     networks:
       - backend
 
@@ -112,3 +119,5 @@ volumes:
   postgres_data:
   splunk_data:
   clamav_data:
+  instance_data:
+  web_instance:

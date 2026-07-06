@@ -17,9 +17,9 @@
         {% if integrity is none %}
         <div class="alert alert-secondary"><i class="fas fa-info-circle"></i> Integrity verification is managed by Report Admin.</div>
         {% elif integrity.integrity_ok %}
-        <div class="alert alert-success"><i class="fas fa-check-circle"></i> Audit log integrity verified. {{ integrity.valid }}/{{ integrity.total }} entries valid.</div>
+        <div class="alert alert-success"><i class="fas fa-check-circle"></i> Audit log integrity verified. {{ integrity.valid }}/{{ integrity.total }} entries valid.{% if integrity.historical %} ({{ integrity.historical }} historical entries signed by a rotated key.){% endif %}</div>
         {% else %}
-        <div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Integrity check failed! {{ integrity.invalid }} invalid entries.</div>
+        <div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Integrity check failed! {{ integrity.invalid }} invalid entries.{% if integrity.historical %} ({{ integrity.historical }} additional historical entries from a rotated key.){% endif %}</div>
         {% endif %}
     </div>
 </div>
