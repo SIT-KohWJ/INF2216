@@ -1,5 +1,4 @@
 from app.models import AuditLog
-from app import db
 from app.services.crypto_service import crypto_service
 
 
