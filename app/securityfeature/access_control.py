@@ -102,7 +102,6 @@ class AccessControlService:
         'admin.approve_deletion':     {'system_admin'},
         'admin.deny_deletion':        {'system_admin'},
         'admin.view_system_audit':    {'system_admin'},
-        'admin.view_platform_config': {'system_admin'},
 
         # ---- API ----
         'api.view_audit':             {'report_admin', 'system_admin'},

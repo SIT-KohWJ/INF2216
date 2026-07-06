@@ -263,58 +263,6 @@ class Notification(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-class PlatformSetting(db.Model):
-    """Admin-editable overrides for a small allowlist of operational settings.
-
-    Only the keys in ALLOWED_KEYS may be stored here; security-critical config
-    (cookie flags, allowed upload types, size limits) stays in server config and
-    is never web-editable. Values are stored as strings and coerced back to int
-    by the loader. On startup these override the matching app.config keys, so
-    every existing `current_app.config.get(KEY)` consumer picks them up with no
-    other code change.
-    """
-    __tablename__ = 'platform_settings'
-
-    # Allowlist: only these operational settings can be overridden from the UI.
-    # Each maps to a (min, max) bound enforced again here as a defence-in-depth
-    # backstop even if a bad value somehow bypasses form validation.
-    ALLOWED_KEYS = {
-        'MAX_FAILED_LOGIN_ATTEMPTS': (3, 10),
-        'LOCKOUT_DURATION_MINUTES': (1, 1440),
-        'PASSWORD_RESET_EXPIRY_MINUTES': (5, 120),
-    }
-
-    key = db.Column(db.String(64), primary_key=True)
-    value = db.Column(db.String(64), nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    @classmethod
-    def apply_overrides(cls, app):
-        """Load stored overrides into app.config, ignoring unknown/out-of-range keys."""
-        for setting in cls.query.all():
-            bounds = cls.ALLOWED_KEYS.get(setting.key)
-            if not bounds:
-                continue  # stale/unknown key — never trust it into config
-            try:
-                val = int(setting.value)
-            except (TypeError, ValueError):
-                continue
-            lo, hi = bounds
-            if lo <= val <= hi:
-                app.config[setting.key] = val
-
-    @classmethod
-    def set_value(cls, key, value):
-        """Upsert a single override. Caller is responsible for the commit."""
-        setting = cls.query.get(key)
-        if setting is None:
-            setting = cls(key=key, value=str(value))
-            db.session.add(setting)
-        else:
-            setting.value = str(value)
-        return setting
-
-
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(user_id)
