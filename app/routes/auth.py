@@ -17,7 +17,7 @@ _TWOFA_WINDOW_SECONDS = 600  # 10 minutes
 
 # Dev-only: roles that may skip login 2FA when DISABLE_STAFF_OTP is set.
 # Never takes effect in production — see DISABLE_STAFF_OTP in app/config.py.
-_STAFF_ROLES_OTP_SKIPPABLE = {'system_admin', 'report_admin', 'investigator'}
+_OTP_SKIPPABLE_ROLES = {'system_admin', 'report_admin', 'investigator', 'whistleblower'}
 
 
 def _dest_for(user):
@@ -118,7 +118,7 @@ def login():
             # gated — app.debug is only ever True under DevelopmentConfig;
             # ProductionConfig hardcodes DEBUG = False regardless of env vars.
             if (current_app.debug and current_app.config.get('DISABLE_STAFF_OTP')
-                    and user.role in _STAFF_ROLES_OTP_SKIPPABLE):
+                    and user.role in _OTP_SKIPPABLE_ROLES):
                 remember_email = form.email.data.lower().strip() if form.remember.data else None
                 crypto_service.log_audit_action(
                     action='user_login',
