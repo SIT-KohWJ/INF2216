@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app.models import User, Report
 from app.services.auth_service import AuthService
 from app.services.report_service import ReportService
-from app.services.audit_service import AuditService
+from app.services.audit_service import AuditService, REPORT_ACTIONS, SYSTEM_ACTIONS
 from app.services.crypto_service import crypto_service
 from app.forms import AssignInvestigatorForm, UserManagementForm, RoleChangeForm
 from datetime import datetime
@@ -148,7 +148,7 @@ def audit_logs():
     if current_user.role != 'report_admin':
         abort(403)
     logs = AuditService.get_report_audit_logs(limit=100)
-    integrity = AuditService.verify_audit_integrity()
+    integrity = AuditService.verify_audit_integrity(actions=REPORT_ACTIONS)
     return render_template('admin/audit_logs.html', logs=logs, integrity=integrity)
 
 
@@ -156,7 +156,7 @@ def audit_logs():
 def verify_audit_integrity():
     if current_user.role != 'report_admin':
         abort(403)
-    result = AuditService.verify_audit_integrity()
+    result = AuditService.verify_audit_integrity(actions=REPORT_ACTIONS)
     if result['integrity_ok']:
         msg = 'Audit log integrity verified successfully'
         if result.get('historical'):
@@ -196,7 +196,8 @@ def system_audit_logs():
     if current_user.role != 'system_admin':
         abort(403)
     logs = AuditService.get_system_audit_logs(limit=100)
-    return render_template('admin/audit_logs.html', logs=logs, integrity=None)
+    integrity = AuditService.verify_audit_integrity(actions=SYSTEM_ACTIONS)
+    return render_template('admin/audit_logs.html', logs=logs, integrity=integrity)
 
 
 @admin_bp.route('/users')

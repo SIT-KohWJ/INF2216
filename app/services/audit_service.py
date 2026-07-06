@@ -13,7 +13,8 @@ SYSTEM_ACTIONS = {
     'user_registration', 'user_login', 'user_logout', 'password_change',
     'role_change', 'user_deactivation', 'user_reactivation', 'account_deletion',
     'login_failed', 'login_failed_account_locked', 'password_reset_requested',
-    'password_reset_completed'
+    'password_reset_completed', 'login_2fa_challenged', 'login_2fa_failed',
+    'key_rotation'
 }
 
 
@@ -53,8 +54,19 @@ class AuditService:
         return None
 
     @staticmethod
-    def verify_audit_integrity():
-        logs = AuditLog.query.all()
+    def verify_audit_integrity(actions=None):
+        """Verify signatures over audit rows, optionally scoped to an action set.
+
+        Each admin only sees their own slice of the log (report_admin sees
+        REPORT_ACTIONS, system_admin sees SYSTEM_ACTIONS), so the integrity
+        banner is scoped the same way — otherwise report_admin's banner would
+        summarise system rows they can't even view. The rotation boundary stays
+        global: a key rotation affects every row regardless of category.
+        """
+        query = AuditLog.query
+        if actions is not None:
+            query = query.filter(AuditLog.action.in_(actions))
+        logs = query.all()
         boundary = AuditService._rotation_boundary()
         valid = 0
         invalid = 0
