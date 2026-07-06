@@ -44,6 +44,12 @@ services:
       FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
       FLASK_ENV:            production
       CLAMD_HOST:           clamav
+      MAIL_SERVER:          ${MAIL_SERVER:-smtp-relay.brevo.com}
+      MAIL_PORT:            ${MAIL_PORT:-587}
+      MAIL_USE_TLS:         ${MAIL_USE_TLS:-true}
+      MAIL_USERNAME:        ${MAIL_USERNAME}
+      MAIL_PASSWORD:        ${MAIL_PASSWORD}
+      MAIL_DEFAULT_SENDER:  ${MAIL_DEFAULT_SENDER:-noreply@sitinform.sit.singaporetech.edu.sg}
     expose:
       - "5000"
     networks:
@@ -91,6 +97,10 @@ services:
     image: splunk/splunk:latest
     container_name: sitinform_splunk
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 3g
     environment:
       SPLUNK_START_ARGS: "--accept-license"
       SPLUNK_GENERAL_TERMS: "--accept-sgt-current-at-splunk-com"
@@ -99,6 +109,7 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - splunk_data:/opt/splunk/var
+      - splunk_etc:/opt/splunk/etc
       - /var/log/snort:/var/log/snort:ro
       - ./logs/nginx:/var/log/nginx:ro
     networks:
@@ -111,4 +122,5 @@ networks:
 volumes:
   postgres_data:
   splunk_data:
+  splunk_etc:
   clamav_data:
