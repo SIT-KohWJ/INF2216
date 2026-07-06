@@ -242,8 +242,8 @@ class AccessControlService:
             # session, trigger firing on a stale session) never cascades into
             # a 500 -- the 403 must still be returned to the client.
             try:
-                from app.securityfeature.audit import AuditService
-                AuditService.log(
+                from app.services.crypto_service import crypto_service
+                crypto_service.log_audit_action(
                     action='authorisation_denied',
                     acting_user=user,
                     acting_role=getattr(user, 'role', 'anonymous') if user else 'anonymous',

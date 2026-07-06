@@ -12,7 +12,6 @@ Covers:
 """
 import os
 import uuid
-from datetime import date, datetime
 
 import pytest
 
@@ -21,7 +20,7 @@ os.environ.setdefault("HMAC_SECRET_KEY", "test-hmac")
 os.environ.setdefault("FIELD_ENCRYPTION_KEY", "test-fek")
 
 from app import create_app, db  # noqa: E402
-from app.models import InvestigationPlan, Report, User  # noqa: E402
+from app.models import Report, User  # noqa: E402
 from app.securityfeature import AccessControlService  # noqa: E402
 from app.services.crypto_service import crypto_service  # noqa: E402
 
