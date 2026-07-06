@@ -1,16 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Notifications - SITinform{% endblock %}
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12 d-flex justify-content-between align-items-center">
-        <h2 class="mb-0"><i class="fas fa-bell"></i> Notifications</h2>
-        {% if notifications and notifications|selectattr('read', 'equalto', false)|list|length > 0 %}
+<div class="page-header">
+    <div class="page-header__icon"><i class="fas fa-bell"></i></div>
+    <div class="page-header__body">
+        <h1 class="page-header__title">Notifications</h1>
+        <p class="page-header__subtitle">Updates on the reports you have submitted.</p>
+    </div>
+    {% if notifications and notifications|selectattr('read', 'equalto', false)|list|length > 0 %}
+    <div class="page-header__actions">
         <form method="POST" action="{{ url_for('reports.mark_all_notifications_read') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-check-double"></i> Mark all as read</button>
+            <button type="submit" class="btn btn-light"><i class="fas fa-check-double"></i> Mark all as read</button>
         </form>
-        {% endif %}
     </div>
+    {% endif %}
 </div>
 <div class="row">
     <div class="col-12">

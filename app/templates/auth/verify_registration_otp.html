@@ -1,42 +1,64 @@
 {% extends "base.html" %}
 {% block title %}Verify Email - SITinform{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0"><i class="fas fa-shield-alt"></i> Verify Your Email</h4>
+<div class="register-page">
+    <div class="register-page__shell register-page__shell--compact">
+        <div class="register-panel">
+            <div class="register-panel__hero">
+                <div class="register-panel__hero-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div>
+                    <h1 class="register-panel__title">Verify your email</h1>
+                    <p class="register-panel__subtitle mb-0">Enter the one-time password we just sent you.</p>
+                </div>
             </div>
-            <div class="card-body">
-                <p class="text-muted mb-3">
+
+            <div class="register-panel__body">
+                <p class="auth-page-copy">
                     A one-time password was sent to
-                    <strong>{{ email }}</strong>.
-                    It is valid for <strong>5 minutes</strong> and can only be used once.
+                    <span class="auth-highlight">{{ email }}</span>.
+                    It is valid for <span class="auth-highlight">5 minutes</span> and can only be used once.
                 </p>
-                <p class="text-muted small mb-4">
-                    Entered the wrong address?
-                    <a href="{{ url_for('auth.register') }}">Go back and try again.</a>
-                </p>
-                <form method="POST" autocomplete="off">
+
+                <form method="POST" autocomplete="off" novalidate>
                     {{ form.hidden_tag() }}
-                    <div class="mb-3">
-                        {{ form.otp.label(class="form-label") }}
-                        {{ form.otp(class="form-control form-control-lg text-center", placeholder="Enter code",
-                                    autofocus=true) }}
-                        {% for error in form.otp.errors %}
-                            <div class="text-danger small mt-1">{{ error }}</div>
-                        {% endfor %}
+
+                    <div class="register-field">
+                        <label for="{{ form.otp.id }}" class="register-label">
+                            <i class="fas fa-key"></i>
+                            <span>{{ form.otp.label.text }}</span>
+                        </label>
+                        {{ form.otp(class="form-control register-input auth-otp-input" ~ (" is-invalid" if form.otp.errors else ""),
+                                    placeholder="000000", maxlength="6", inputmode="numeric",
+                                    pattern="[0-9]{6}", autocomplete="one-time-code", autofocus=true) }}
+                        {% if form.otp.errors %}
+                        <div class="invalid-feedback d-block">{{ form.otp.errors[0] }}</div>
+                        {% endif %}
                     </div>
+
                     <div class="d-grid">
-                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                        {{ form.submit(class="btn register-submit-btn") }}
                     </div>
                 </form>
-                <div class="mt-3 text-center">
-                    <a href="{{ url_for('auth.register') }}" class="text-muted small">
-                        Didn't receive it? Request a new OTP
+
+                <div class="auth-actions">
+                    <a href="{{ url_for('auth.register') }}" class="auth-action-link">
+                        <i class="fas fa-rotate-right"></i> Didn&apos;t receive it? Request a new OTP
+                    </a>
+                    <a href="{{ url_for('auth.register') }}" class="auth-action-link">
+                        <i class="fas fa-arrow-left"></i> Wrong address? Go back and try again
                     </a>
                 </div>
             </div>
+        </div>
+
+        <div class="register-page__footer">
+            <div class="register-page__footer-brand">
+                <i class="fas fa-shield-alt"></i>
+                <span>SITinform</span>
+            </div>
+            <p class="mb-0">Your voice matters. Reports are confidential.</p>
         </div>
     </div>
 </div>

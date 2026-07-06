@@ -1,9 +1,11 @@
 from flask_wtf import FlaskForm
 from wtforms import (
-    BooleanField, DateField, TimeField, FileField, HiddenField, PasswordField,
-    SelectField, StringField, SubmitField, TextAreaField,
+    BooleanField, DateField, TimeField, FileField, HiddenField, IntegerField,
+    PasswordField, SelectField, StringField, SubmitField, TextAreaField,
 )
-from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
+from wtforms.validators import (
+    DataRequired, Email, EqualTo, Length, NumberRange, ValidationError,
+)
 
 from app.services.auth_service import AuthService
 
@@ -174,3 +176,24 @@ class RoleChangeForm(FlaskForm):
         ('system_admin', 'System Admin'),
     ], validators=[DataRequired()])
     submit = SubmitField('Change Role')
+
+
+class PlatformConfigForm(FlaskForm):
+    """Edit the safe, operational subset of platform settings.
+
+    Bounds mirror PlatformSetting.ALLOWED_KEYS; security-critical settings are
+    intentionally NOT exposed here and stay in server config.
+    """
+    max_failed_login_attempts = IntegerField(
+        'Max failed login attempts before lockout',
+        validators=[DataRequired(), NumberRange(min=3, max=10)],
+    )
+    lockout_duration_minutes = IntegerField(
+        'Account lockout duration (minutes)',
+        validators=[DataRequired(), NumberRange(min=1, max=1440)],
+    )
+    password_reset_expiry_minutes = IntegerField(
+        'Password reset window after OTP (minutes)',
+        validators=[DataRequired(), NumberRange(min=5, max=120)],
+    )
+    submit = SubmitField('Save Changes')

@@ -1,21 +1,88 @@
 {% extends "base.html" %}
 {% block title %}Create User - SITinform{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white"><h4 class="mb-0"><i class="fas fa-user-plus"></i> Create User</h4></div>
-            <div class="card-body">
-                <form method="POST">
+<div class="register-page">
+    <div class="register-page__shell register-page__shell--compact">
+        <div class="register-panel">
+            <div class="register-panel__hero">
+                <div class="register-panel__hero-icon">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <div>
+                    <h1 class="register-panel__title">Create User</h1>
+                    <p class="register-panel__subtitle mb-0">Add a new account to the platform.</p>
+                </div>
+            </div>
+
+            <div class="register-panel__body">
+                <form method="POST" novalidate>
                     {{ form.hidden_tag() }}
-                    <div class="mb-3">{{ form.first_name.label(class="form-label") }} {{ form.first_name(class="form-control") }}{% if form.first_name.errors %}<div class="text-danger small">{{ form.first_name.errors[0] }}</div>{% endif %}</div>
-                    <div class="mb-3">{{ form.last_name.label(class="form-label") }} {{ form.last_name(class="form-control") }}{% if form.last_name.errors %}<div class="text-danger small">{{ form.last_name.errors[0] }}</div>{% endif %}</div>
-                    <div class="mb-3">{{ form.email.label(class="form-label") }} {{ form.email(class="form-control", placeholder="username@sit.singaporetech.edu.sg") }}{% if form.email.errors %}<div class="text-danger small">{{ form.email.errors[0] }}</div>{% endif %}</div>
-                    <div class="mb-3">{{ form.password.label(class="form-label") }} {{ form.password(class="form-control") }}{% if form.password.errors %}<div class="text-danger small">{{ form.password.errors[0] }}</div>{% endif %}</div>
-                    <div class="mb-3">{{ form.role.label(class="form-label") }} {{ form.role(class="form-select") }}</div>
-                    <div class="d-grid">{{ form.submit(class="btn btn-primary btn-lg") }}</div>
+
+                    <div class="register-field">
+                        <label for="{{ form.first_name.id }}" class="register-label">
+                            <i class="fas fa-user"></i>
+                            <span>{{ form.first_name.label.text }}</span>
+                        </label>
+                        {{ form.first_name(class="form-control register-input" ~ (" is-invalid" if form.first_name.errors else "")) }}
+                        {% if form.first_name.errors %}
+                        <div class="invalid-feedback d-block">{{ form.first_name.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="register-field">
+                        <label for="{{ form.last_name.id }}" class="register-label">
+                            <i class="fas fa-user"></i>
+                            <span>{{ form.last_name.label.text }}</span>
+                        </label>
+                        {{ form.last_name(class="form-control register-input" ~ (" is-invalid" if form.last_name.errors else "")) }}
+                        {% if form.last_name.errors %}
+                        <div class="invalid-feedback d-block">{{ form.last_name.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="register-field">
+                        <label for="{{ form.email.id }}" class="register-label">
+                            <i class="fas fa-envelope"></i>
+                            <span>{{ form.email.label.text }}</span>
+                        </label>
+                        {{ form.email(class="form-control register-input" ~ (" is-invalid" if form.email.errors else ""), placeholder="username@sit.singaporetech.edu.sg") }}
+                        {% if form.email.errors %}
+                        <div class="invalid-feedback d-block">{{ form.email.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="register-field">
+                        <label for="{{ form.password.id }}" class="register-label">
+                            <i class="fas fa-lock"></i>
+                            <span>{{ form.password.label.text }}</span>
+                        </label>
+                        <div class="register-input-wrap">
+                            {{ form.password(class="form-control register-input register-input--with-icon" ~ (" is-invalid" if form.password.errors else "")) }}
+                            <span class="register-input-icon" aria-hidden="true"><i class="fas fa-eye"></i></span>
+                        </div>
+                        {% if form.password.errors %}
+                        <div class="invalid-feedback d-block">{{ form.password.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="register-field">
+                        <label for="{{ form.role.id }}" class="register-label">
+                            <i class="fas fa-user-shield"></i>
+                            <span>{{ form.role.label.text }}</span>
+                        </label>
+                        {{ form.role(class="form-select register-input") }}
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn register-submit-btn") }}
+                    </div>
                 </form>
-                <div class="mt-3 text-center"><a href="{{ url_for('admin.manage_users') }}">Back to Users</a></div>
+
+                <div class="register-divider"><span>or</span></div>
+
+                <p class="register-login-copy mb-0">
+                    <a href="{{ url_for('admin.manage_users') }}" class="register-login-link"><i class="fas fa-arrow-left me-1"></i> Back to Users</a>
+                </p>
             </div>
         </div>
     </div>

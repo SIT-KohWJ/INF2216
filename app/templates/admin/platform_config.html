@@ -1,17 +1,66 @@
 {% extends "base.html" %}
 {% block title %}Platform Config - SITinform{% endblock %}
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12"><h2><i class="fas fa-cogs"></i> Platform Configuration</h2></div>
+<div class="page-header">
+    <div class="page-header__icon"><i class="fas fa-cogs"></i></div>
+    <div class="page-header__body">
+        <h1 class="page-header__title">Platform Configuration</h1>
+        <p class="page-header__subtitle">Adjust operational settings; security settings are managed server-side.</p>
+    </div>
 </div>
-<div class="row">
-    <div class="col-12">
-        <div class="card">
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header"><h5 class="mb-0"><i class="fas fa-sliders-h"></i> Editable Settings</h5></div>
             <div class="card-body">
-                <table class="table">
+                <form method="POST" action="{{ url_for('admin.platform_config') }}" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.max_failed_login_attempts.label(class="form-label") }}
+                        {{ form.max_failed_login_attempts(class="form-control" ~ (" is-invalid" if form.max_failed_login_attempts.errors else ""), type="number", min="3", max="10") }}
+                        {% if form.max_failed_login_attempts.errors %}
+                        <div class="invalid-feedback d-block">{{ form.max_failed_login_attempts.errors[0] }}</div>
+                        {% endif %}
+                        <div class="form-text">How many failed logins before an account is locked (3&ndash;10).</div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.lockout_duration_minutes.label(class="form-label") }}
+                        {{ form.lockout_duration_minutes(class="form-control" ~ (" is-invalid" if form.lockout_duration_minutes.errors else ""), type="number", min="1", max="1440") }}
+                        {% if form.lockout_duration_minutes.errors %}
+                        <div class="invalid-feedback d-block">{{ form.lockout_duration_minutes.errors[0] }}</div>
+                        {% endif %}
+                        <div class="form-text">How long a locked account stays locked (1&ndash;1440 minutes).</div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.password_reset_expiry_minutes.label(class="form-label") }}
+                        {{ form.password_reset_expiry_minutes(class="form-control" ~ (" is-invalid" if form.password_reset_expiry_minutes.errors else ""), type="number", min="5", max="120") }}
+                        {% if form.password_reset_expiry_minutes.errors %}
+                        <div class="invalid-feedback d-block">{{ form.password_reset_expiry_minutes.errors[0] }}</div>
+                        {% endif %}
+                        <div class="form-text">Window to complete a reset after OTP verification (5&ndash;120 minutes).</div>
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-header"><h5 class="mb-0"><i class="fas fa-lock"></i> Security Settings (read-only)</h5></div>
+            <div class="card-body">
+                <p class="text-muted small">Managed in server configuration and not editable from the browser.</p>
+                <table class="table table-sm mb-0">
                     <tbody>
-                        {% for key, value in config.items() %}
-                        <tr><td><strong>{{ key }}</strong></td><td>{{ value }}</td></tr>
+                        {% for key, value in readonly_config.items() %}
+                        <tr><td><strong>{{ key }}</strong></td><td class="text-end">{{ value }}</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
