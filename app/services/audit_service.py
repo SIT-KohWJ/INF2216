@@ -13,7 +13,7 @@ SYSTEM_ACTIONS = {
     'role_change', 'user_deactivation', 'user_reactivation', 'account_deletion',
     'login_failed', 'login_failed_account_locked', 'password_reset_requested',
     'password_reset_completed', 'login_2fa_challenged', 'login_2fa_failed',
-    'key_rotation', 'platform_config_updated'
+    'key_rotation'
 }
 
 
