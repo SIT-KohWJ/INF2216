@@ -6,6 +6,7 @@ from app.services.report_service import ReportService
 from app.services.audit_service import AuditService
 from app.services.crypto_service import crypto_service
 from app.forms import AssignInvestigatorForm, UserManagementForm, RoleChangeForm
+from app.securityfeature import require_permission, load_user_from_url, AccessControlService
 from datetime import datetime
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -211,18 +212,15 @@ def manage_users():
 
 
 @admin_bp.route('/users/<user_id>/deactivate', methods=['POST'])
-def deactivate_user(user_id):
-    if current_user.role != 'system_admin':
-        abort(403)
-    if str(user_id) == str(current_user.id):
+@login_required
+@require_permission('admin.deactivate_user', resource_loader=load_user_from_url)
+def deactivate_user(user_id, resource=None):
+    target = resource
+    if str(target.id) == str(current_user.id):
         flash('Cannot deactivate your own account', 'danger')
         return redirect(url_for('admin.manage_users'))
-    user = AuthService.get_user_by_id(user_id)
-    if user:
-        success, message = AuthService.deactivate_user(user, current_user)
-        flash(message, 'success' if success else 'danger')
-    else:
-        flash('User not found', 'danger')
+    success, message = AuthService.deactivate_user(target, current_user)
+    flash(message, 'success' if success else 'danger')
     return redirect(url_for('admin.manage_users'))
 
 
@@ -284,7 +282,17 @@ def change_user_role(user_id):
         abort(404)
     form = RoleChangeForm()
     if form.validate_on_submit():
-        success, message = AuthService.update_user_role(user=user, new_role=form.role.data, acting_user=current_user)
+        new_role = form.role.data
+        # Server-side whitelist + privilege-escalation guard (Burp resistance:
+        # a forged POST with role='system_admin' from a report_admin is blocked
+        # here, even if the WTForms choices list was bypassed).
+        if not AccessControlService.is_valid_role(new_role):
+            flash('Invalid role', 'danger')
+            return redirect(url_for('admin.manage_users'))
+        if not AccessControlService.can_assign_role(current_user, new_role):
+            flash('Cannot assign a role equal to or higher than your own.', 'danger')
+            return redirect(url_for('admin.manage_users'))
+        success, message = AuthService.update_user_role(user=user, new_role=new_role, acting_user=current_user)
         if success:
             flash(message, 'success')
             return redirect(url_for('admin.manage_users'))
