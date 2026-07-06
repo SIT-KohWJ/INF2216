@@ -17,7 +17,7 @@ _TWOFA_WINDOW_SECONDS = 600  # 10 minutes
 
 # Dev-only: roles that may skip login 2FA when DISABLE_STAFF_OTP is set.
 # Never takes effect in production — see DISABLE_STAFF_OTP in app/config.py.
-_OTP_SKIPPABLE_ROLES = {'system_admin', 'report_admin', 'investigator', 'whistleblower'}
+_OTP_SKIPPABLE_ROLES = {'system_admin', 'report_admin', 'investigator'}
 
 
 def _dest_for(user):
