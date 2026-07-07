@@ -1,18 +1,46 @@
 {% extends "base.html" %}
 {% block title %}Change Role - SITinform{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card shadow">
-            <div class="card-header bg-warning text-dark"><h4 class="mb-0"><i class="fas fa-user-shield"></i> Change Role</h4></div>
-            <div class="card-body">
-                <p>User: <strong>{{ target_user.full_name }}</strong> ({{ target_user.email }})</p>
-                <p>Current Role: <span class="badge bg-secondary">{{ get_role_display_name(target_user.role) }}</span></p>
-                <form method="POST">
+<div class="register-page">
+    <div class="register-page__shell register-page__shell--compact">
+        <div class="register-panel">
+            <div class="register-panel__hero">
+                <div class="register-panel__hero-icon">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div>
+                    <h1 class="register-panel__title">Change Role</h1>
+                    <p class="register-panel__subtitle mb-0">Update this user's access level.</p>
+                </div>
+            </div>
+
+            <div class="register-panel__body">
+                <p class="auth-page-copy">
+                    User: <span class="auth-highlight">{{ target_user.full_name }}</span> ({{ target_user.email }})<br>
+                    Current role: <span class="badge bg-secondary">{{ get_role_display_name(target_user.role) }}</span>
+                </p>
+
+                <form method="POST" novalidate>
                     {{ form.hidden_tag() }}
-                    <div class="mb-3">{{ form.role.label(class="form-label") }} {{ form.role(class="form-select") }}</div>
-                    <div class="d-grid">{{ form.submit(class="btn btn-warning") }}</div>
+
+                    <div class="register-field">
+                        <label for="{{ form.role.id }}" class="register-label">
+                            <i class="fas fa-user-shield"></i>
+                            <span>{{ form.role.label.text }}</span>
+                        </label>
+                        {{ form.role(class="form-select register-input") }}
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn register-submit-btn") }}
+                    </div>
                 </form>
+
+                <div class="register-divider"><span>or</span></div>
+
+                <p class="register-login-copy mb-0">
+                    <a href="{{ url_for('admin.manage_users') }}" class="register-login-link"><i class="fas fa-arrow-left me-1"></i> Back to Users</a>
+                </p>
             </div>
         </div>
     </div>
