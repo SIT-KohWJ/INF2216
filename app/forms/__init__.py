@@ -1,3 +1,5 @@
+import unicodedata
+
 from flask_wtf import FlaskForm
 from wtforms import (
     BooleanField, DateField, TimeField, FileField, HiddenField,
@@ -8,6 +10,37 @@ from wtforms.validators import (
 )
 
 from app.services.auth_service import AuthService
+
+
+# ---------------------------------------------------------------------------
+# Shared: block emoji + invisible/control Unicode in free-text fields, while
+# allowing any language/script (accented letters, CJK, Tamil, Arabic, etc.).
+# ---------------------------------------------------------------------------
+
+_EMOJI_RANGES = (
+    (0x1F1E6, 0x1F1FF),  # regional indicator symbols (flag emoji)
+    (0x1F300, 0x1FAFF),  # misc symbols/pictographs .. symbols & pictographs ext-A
+    (0x2600, 0x27BF),    # misc symbols & dingbats
+    (0x2B00, 0x2BFF),    # misc symbols and arrows (e.g. star emoji)
+    (0xFE00, 0xFE0F),    # variation selectors (emoji presentation form)
+    (0x1F000, 0x1F0FF),  # mahjong/domino/playing card symbols
+)
+# Unicode general categories with no legitimate purpose in free text:
+# Cc=control, Cf=format (zero-width joiners, RTL/LTR overrides, BOM),
+# Cs=surrogate, Co=private-use, Cn=unassigned.
+_BLOCKED_CATEGORIES = {'Cc', 'Cf', 'Cs', 'Co', 'Cn'}
+_ALLOWED_WHITESPACE = {'\n', '\r', '\t'}
+
+
+def no_emoji_or_control_chars(form, field):
+    for ch in field.data or '':
+        if ch in _ALLOWED_WHITESPACE:
+            continue
+        code_point = ord(ch)
+        if any(lo <= code_point <= hi for lo, hi in _EMOJI_RANGES):
+            raise ValidationError('Emoji are not allowed.')
+        if unicodedata.category(ch) in _BLOCKED_CATEGORIES:
+            raise ValidationError('Invisible or control characters are not allowed.')
 
 
 # ---------------------------------------------------------------------------
@@ -104,8 +137,8 @@ class PasswordResetForm(FlaskForm):
 # ---------------------------------------------------------------------------
 
 class ReportForm(FlaskForm):
-    title = StringField('Title', validators=[DataRequired(), Length(max=100)])
-    description = TextAreaField('Description', validators=[DataRequired(), Length(max=10000)])
+    title = StringField('Title', validators=[DataRequired(), Length(max=100), no_emoji_or_control_chars])
+    description = TextAreaField('Description', validators=[DataRequired(), Length(max=10000), no_emoji_or_control_chars])
     category = SelectField('Category', choices=[
         ('academic_misconduct', 'Academic Misconduct'),
         ('financial_misconduct', 'Financial Misconduct'),
@@ -119,19 +152,19 @@ class ReportForm(FlaskForm):
 
 
 class InvestigationNoteForm(FlaskForm):
-    note = TextAreaField('Note', validators=[DataRequired(), Length(max=5000)])
+    note = TextAreaField('Note', validators=[DataRequired(), Length(max=5000), no_emoji_or_control_chars])
     submit = SubmitField('Add Note')
 
 
 class InvestigationPlanForm(FlaskForm):
-    investigator_full_name = StringField('Investigator Full Name', validators=[DataRequired(), Length(max=128)])
-    investigator_job_title = StringField('Investigator Job Title', validators=[DataRequired(), Length(max=128)])
-    investigator_staff_id = StringField('Investigator Staff ID', validators=[DataRequired(), Length(max=64)])
+    investigator_full_name = StringField('Investigator Full Name', validators=[DataRequired(), Length(max=128), Regexp(NAME_REGEX, message=NAME_REGEX_MESSAGE)])
+    investigator_job_title = StringField('Investigator Job Title', validators=[DataRequired(), Length(max=128), no_emoji_or_control_chars])
+    investigator_staff_id = StringField('Investigator Staff ID', validators=[DataRequired(), Length(max=64), no_emoji_or_control_chars])
     planning_date = DateField('Planning Date', format='%Y-%m-%d', validators=[DataRequired()])
-    case_overview = TextAreaField('Case Overview', validators=[DataRequired(), Length(max=5000)])
+    case_overview = TextAreaField('Case Overview', validators=[DataRequired(), Length(max=5000), no_emoji_or_control_chars])
     incident_date = DateField('Incident Date', format='%Y-%m-%d', validators=[DataRequired()])
     incident_time = TimeField('Incident Time', format='%H:%M', validators=[DataRequired()])
-    incident_where = StringField('Incident Where', validators=[DataRequired(), Length(max=255)])
+    incident_where = StringField('Incident Where', validators=[DataRequired(), Length(max=255), no_emoji_or_control_chars])
     submit = SubmitField('Save Investigation Plan')
 
 
@@ -142,7 +175,7 @@ class OutcomeForm(FlaskForm):
         ('referred', 'Referred'),
         ('insufficient_evidence', 'Insufficient Evidence'),
     ], validators=[DataRequired()])
-    outcome_details = TextAreaField('Details', validators=[DataRequired(), Length(max=5000)])
+    outcome_details = TextAreaField('Details', validators=[DataRequired(), Length(max=5000), no_emoji_or_control_chars])
     submit = SubmitField('Recommend Outcome')
 
 

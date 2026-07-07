@@ -74,6 +74,12 @@ def submit_report():
 def view_report(report_id, resource=None):
     report = resource
     decrypted_data = ReportService.decrypt_report_data(report)
+    if decrypted_data:
+        report.display_title = decrypted_data.get('title', report.title)
+        report.display_description = decrypted_data.get('description', report.description)
+    else:
+        report.display_title = report.title
+        report.display_description = report.description
     evidence = ReportService.get_evidence_for_report(report_id)
     notes = ReportService.get_investigation_notes(report_id)
     history = ReportService.get_report_audit_history(report_id)
