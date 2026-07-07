@@ -10,10 +10,11 @@ REPORT_ACTIONS = {
 
 SYSTEM_ACTIONS = {
     'user_registration', 'user_login', 'user_logout', 'password_change',
-    'role_change', 'user_deactivation', 'user_reactivation', 'account_deletion',
+    'role_change', 'user_deactivation', 'user_reactivation',
+    'account_deletion_requested', 'account_deletion_approved',
     'login_failed', 'login_failed_account_locked', 'password_reset_requested',
     'password_reset_completed', 'login_2fa_challenged', 'login_2fa_failed',
-    'key_rotation'
+    'logout_all', 'authorisation_denied', 'otp_verified', 'key_rotation'
 }
 
 
