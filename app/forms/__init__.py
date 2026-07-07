@@ -4,7 +4,7 @@ from wtforms import (
     PasswordField, SelectField, StringField, SubmitField, TextAreaField,
 )
 from wtforms.validators import (
-    DataRequired, Email, EqualTo, Length, ValidationError,
+    DataRequired, Email, EqualTo, Length, Regexp, ValidationError,
 )
 
 from app.services.auth_service import AuthService
@@ -14,9 +14,15 @@ from app.services.auth_service import AuthService
 # Auth forms
 # ---------------------------------------------------------------------------
 
+# Letters, plus apostrophe/hyphen/space for real names (O'Brien, Anne-Marie, Mary Jane).
+# Must start with a letter — blocks emojis, digits, and symbol-only input.
+NAME_REGEX = r"\A[A-Za-z][A-Za-z'\- ]*\Z"
+NAME_REGEX_MESSAGE = "Only letters, apostrophes, hyphens, and spaces are allowed."
+
+
 class RegistrationForm(FlaskForm):
-    first_name = StringField('First Name', validators=[DataRequired(), Length(max=64)])
-    last_name = StringField('Last Name', validators=[DataRequired(), Length(max=64)])
+    first_name = StringField('First Name', validators=[DataRequired(), Length(max=64), Regexp(NAME_REGEX, message=NAME_REGEX_MESSAGE)])
+    last_name = StringField('Last Name', validators=[DataRequired(), Length(max=64), Regexp(NAME_REGEX, message=NAME_REGEX_MESSAGE)])
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=8)])
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password', message='Passwords do not match.')])
@@ -146,8 +152,8 @@ class AssignInvestigatorForm(FlaskForm):
 
 
 class UserManagementForm(FlaskForm):
-    first_name = StringField('First Name', validators=[DataRequired(), Length(max=64)])
-    last_name = StringField('Last Name', validators=[DataRequired(), Length(max=64)])
+    first_name = StringField('First Name', validators=[DataRequired(), Length(max=64), Regexp(NAME_REGEX, message=NAME_REGEX_MESSAGE)])
+    last_name = StringField('Last Name', validators=[DataRequired(), Length(max=64), Regexp(NAME_REGEX, message=NAME_REGEX_MESSAGE)])
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=8)])
     role = SelectField('Role', choices=[

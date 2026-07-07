@@ -42,9 +42,15 @@ def dashboard():
                                closed_reports=closed_reports,
                                recent_activity=recent_activity)
     else:
-        total_users = User.query.count()
-        active_users = User.query.filter_by(is_active=True).count()
-        suspended_users = User.query.filter_by(is_active=False).count()
+        # Anonymised accounts from an approved deletion (deleted_<id>@deleted.sitinform)
+        # are kept only for report/audit integrity; they are not real, manageable
+        # users, so exclude them here just like manage_users() does. Pending-deletion
+        # accounts are also excluded from "Suspended" since they're their own bucket
+        # (deletion_requests) in manage_users(), not admin-suspended accounts.
+        not_deleted = ~User.email.like('%@deleted.sitinform')
+        total_users = User.query.filter(not_deleted).count()
+        active_users = User.query.filter_by(is_active=True).filter(not_deleted).count()
+        suspended_users = User.query.filter_by(is_active=False, deletion_requested=False).filter(not_deleted).count()
         recent_activity = AuditService.get_recent_system_activity(10)
         return render_template('admin/dashboard.html',
                                total_users=total_users,
