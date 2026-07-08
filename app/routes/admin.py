@@ -3,9 +3,10 @@ from flask_login import login_required, current_user
 from app.models import User, Report
 from app.services.auth_service import AuthService
 from app.services.report_service import ReportService
-from app.services.audit_service import AuditService
+from app.services.audit_service import AuditService, REPORT_ACTIONS, SYSTEM_ACTIONS
 from app.services.crypto_service import crypto_service
 from app.forms import AssignInvestigatorForm, UserManagementForm, RoleChangeForm
+from app.securityfeature import require_permission, load_user_from_url, AccessControlService
 from datetime import datetime
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -41,9 +42,15 @@ def dashboard():
                                closed_reports=closed_reports,
                                recent_activity=recent_activity)
     else:
-        total_users = User.query.count()
-        active_users = User.query.filter_by(is_active=True).count()
-        suspended_users = User.query.filter_by(is_active=False).count()
+        # Anonymised accounts from an approved deletion (deleted_<id>@deleted.sitinform)
+        # are kept only for report/audit integrity; they are not real, manageable
+        # users, so exclude them here just like manage_users() does. Pending-deletion
+        # accounts are also excluded from "Suspended" since they're their own bucket
+        # (deletion_requests) in manage_users(), not admin-suspended accounts.
+        not_deleted = ~User.email.like('%@deleted.sitinform')
+        total_users = User.query.filter(not_deleted).count()
+        active_users = User.query.filter_by(is_active=True).filter(not_deleted).count()
+        suspended_users = User.query.filter_by(is_active=False, deletion_requested=False).filter(not_deleted).count()
         recent_activity = AuditService.get_recent_system_activity(10)
         return render_template('admin/dashboard.html',
                                total_users=total_users,
@@ -148,7 +155,7 @@ def audit_logs():
     if current_user.role != 'report_admin':
         abort(403)
     logs = AuditService.get_report_audit_logs(limit=100)
-    integrity = AuditService.verify_audit_integrity()
+    integrity = AuditService.verify_audit_integrity(actions=REPORT_ACTIONS)
     return render_template('admin/audit_logs.html', logs=logs, integrity=integrity)
 
 
@@ -156,9 +163,12 @@ def audit_logs():
 def verify_audit_integrity():
     if current_user.role != 'report_admin':
         abort(403)
-    result = AuditService.verify_audit_integrity()
+    result = AuditService.verify_audit_integrity(actions=REPORT_ACTIONS)
     if result['integrity_ok']:
-        flash('Audit log integrity verified successfully', 'success')
+        msg = 'Audit log integrity verified successfully'
+        if result.get('historical'):
+            msg += f' ({result["historical"]} historical entries signed by a rotated key)'
+        flash(msg, 'success')
     else:
         flash(f'Audit log integrity check failed: {result["invalid"]} invalid entries', 'danger')
     return redirect(url_for('admin.audit_logs'))
@@ -177,15 +187,6 @@ def export_audit_logs():
     return response
 
 
-@admin_bp.route('/security')
-def security_monitoring():
-    if current_user.role != 'report_admin':
-        abort(403)
-    suspicious_activity = AuditService.get_suspicious_activity()
-    activity_stats = AuditService.get_activity_stats()
-    return render_template('admin/security_monitoring.html', suspicious_activity=suspicious_activity, activity_stats=activity_stats)
-
-
 # ── System Admin routes (FR-SA2 to FR-SA8) ───────────────────────────────────
 
 @admin_bp.route('/system_audit')
@@ -193,7 +194,8 @@ def system_audit_logs():
     if current_user.role != 'system_admin':
         abort(403)
     logs = AuditService.get_system_audit_logs(limit=100)
-    return render_template('admin/audit_logs.html', logs=logs, integrity=None)
+    integrity = AuditService.verify_audit_integrity(actions=SYSTEM_ACTIONS)
+    return render_template('admin/audit_logs.html', logs=logs, integrity=integrity)
 
 
 @admin_bp.route('/users')
@@ -211,18 +213,15 @@ def manage_users():
 
 
 @admin_bp.route('/users/<user_id>/deactivate', methods=['POST'])
-def deactivate_user(user_id):
-    if current_user.role != 'system_admin':
-        abort(403)
-    if str(user_id) == str(current_user.id):
+@login_required
+@require_permission('admin.deactivate_user', resource_loader=load_user_from_url)
+def deactivate_user(user_id, resource=None):
+    target = resource
+    if str(target.id) == str(current_user.id):
         flash('Cannot deactivate your own account', 'danger')
         return redirect(url_for('admin.manage_users'))
-    user = AuthService.get_user_by_id(user_id)
-    if user:
-        success, message = AuthService.deactivate_user(user, current_user)
-        flash(message, 'success' if success else 'danger')
-    else:
-        flash('User not found', 'danger')
+    success, message = AuthService.deactivate_user(target, current_user)
+    flash(message, 'success' if success else 'danger')
     return redirect(url_for('admin.manage_users'))
 
 
@@ -284,7 +283,17 @@ def change_user_role(user_id):
         abort(404)
     form = RoleChangeForm()
     if form.validate_on_submit():
-        success, message = AuthService.update_user_role(user=user, new_role=form.role.data, acting_user=current_user)
+        new_role = form.role.data
+        # Server-side whitelist + privilege-escalation guard (Burp resistance:
+        # a forged POST with role='system_admin' from a report_admin is blocked
+        # here, even if the WTForms choices list was bypassed).
+        if not AccessControlService.is_valid_role(new_role):
+            flash('Invalid role', 'danger')
+            return redirect(url_for('admin.manage_users'))
+        if not AccessControlService.can_assign_role(current_user, new_role):
+            flash('Cannot assign a role equal to or higher than your own.', 'danger')
+            return redirect(url_for('admin.manage_users'))
+        success, message = AuthService.update_user_role(user=user, new_role=new_role, acting_user=current_user)
         if success:
             flash(message, 'success')
             return redirect(url_for('admin.manage_users'))
@@ -306,22 +315,3 @@ def create_user():
         else:
             flash(message, 'danger')
     return render_template('admin/create_user.html', form=form)
-
-
-@admin_bp.route('/platform_config')
-def platform_config():
-    if current_user.role != 'system_admin':
-        abort(403)
-    from flask import current_app
-    config = {
-        'max_content_length': current_app.config.get('MAX_CONTENT_LENGTH'),
-        'allowed_extensions': list(current_app.config.get('ALLOWED_EXTENSIONS', set())),
-        'session_cookie_secure': current_app.config.get('SESSION_COOKIE_SECURE'),
-        'session_cookie_httponly': current_app.config.get('SESSION_COOKIE_HTTPONLY'),
-        'session_cookie_samesite': current_app.config.get('SESSION_COOKIE_SAMESITE'),
-        'ratelimit_default': current_app.config.get('RATELIMIT_DEFAULT'),
-        'max_failed_login_attempts': current_app.config.get('MAX_FAILED_LOGIN_ATTEMPTS'),
-        'lockout_duration_minutes': current_app.config.get('LOCKOUT_DURATION_MINUTES'),
-        'password_reset_expiry_minutes': current_app.config.get('PASSWORD_RESET_EXPIRY_MINUTES'),
-    }
-    return render_template('admin/platform_config.html', config=config)

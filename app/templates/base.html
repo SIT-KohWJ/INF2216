@@ -18,11 +18,14 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                    {# reports.dashboard redirects admins to admin.dashboard, so a
+                       generic Dashboard link would duplicate the role link below #}
                     {% if current_user.role == 'report_admin' %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.dashboard') }}"><i class="fas fa-file-alt"></i> Report Admin</a></li>
                     {% elif current_user.role == 'system_admin' %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.dashboard') }}"><i class="fas fa-cog"></i> System Admin</a></li>
+                    {% else %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
                     {% endif %}
                     {% if current_user.role == 'whistleblower' %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
