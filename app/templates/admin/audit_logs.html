@@ -1,27 +1,25 @@
 {% extends "base.html" %}
 {% block title %}Audit Logs - SITinform{% endblock %}
 {% block content %}
-<div class="page-header">
-    <div class="page-header__icon"><i class="fas fa-clipboard-list"></i></div>
-    <div class="page-header__body">
-        <h1 class="page-header__title">Audit Logs</h1>
-        <p class="page-header__subtitle">Tamper-evident record of activity across the platform.</p>
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <div><h2><i class="fas fa-clipboard-list"></i> Audit Logs</h2></div>
+        <div>
+            {% if current_user.role == 'report_admin' %}
+            <a href="{{ url_for('admin.verify_audit_integrity') }}" class="btn btn-outline-info"><i class="fas fa-check-circle"></i> Verify Integrity</a>
+            <a href="{{ url_for('admin.export_audit_logs') }}" class="btn btn-outline-primary"><i class="fas fa-download"></i> Export</a>
+            {% endif %}
+        </div>
     </div>
-    {% if current_user.role == 'report_admin' %}
-    <div class="page-header__actions">
-        <a href="{{ url_for('admin.verify_audit_integrity') }}" class="btn btn-light"><i class="fas fa-check-circle"></i> Verify Integrity</a>
-        <a href="{{ url_for('admin.export_audit_logs') }}" class="btn btn-light"><i class="fas fa-download"></i> Export</a>
-    </div>
-    {% endif %}
 </div>
 <div class="row mb-3">
     <div class="col-12">
         {% if integrity is none %}
         <div class="alert alert-secondary"><i class="fas fa-info-circle"></i> Integrity verification is managed by Report Admin.</div>
         {% elif integrity.integrity_ok %}
-        <div class="alert alert-success"><i class="fas fa-check-circle"></i> Audit log integrity verified. {{ integrity.valid }}/{{ integrity.total }} entries valid.{% if integrity.historical %} ({{ integrity.historical }} historical entries signed by a rotated key.){% endif %}</div>
+        <div class="alert alert-success"><i class="fas fa-check-circle"></i> Audit log integrity verified. {{ integrity.valid }}/{{ integrity.total }} entries valid.</div>
         {% else %}
-        <div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Integrity check failed! {{ integrity.invalid }} invalid entries.{% if integrity.historical %} ({{ integrity.historical }} additional historical entries from a rotated key.){% endif %}</div>
+        <div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Integrity check failed! {{ integrity.invalid }} invalid entries.</div>
         {% endif %}
     </div>
 </div>

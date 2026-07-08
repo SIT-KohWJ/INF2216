@@ -6,7 +6,6 @@ from app import limiter
 from app.services.crypto_service import crypto_service
 from app.forms import ReportForm, InvestigationNoteForm, InvestigationPlanForm, OutcomeForm
 from app.models import Evidence
-from app.securityfeature import require_permission, load_report_from_url
 from datetime import date, datetime
 import io
 
@@ -70,16 +69,14 @@ def submit_report():
 
 @reports_bp.route('/<report_id>')
 @login_required
-@require_permission('report.view', resource_loader=load_report_from_url)
-def view_report(report_id, resource=None):
-    report = resource
+def view_report(report_id):
+    report, error = ReportService.get_report_by_id(report_id, current_user)
+    if error:
+        flash(error, 'warning')
+        if current_user.role == 'investigator':
+            return redirect(url_for('reports.investigator_dashboard'))
+        return redirect(url_for('reports.dashboard'))
     decrypted_data = ReportService.decrypt_report_data(report)
-    if decrypted_data:
-        report.display_title = decrypted_data.get('title', report.title)
-        report.display_description = decrypted_data.get('description', report.description)
-    else:
-        report.display_title = report.title
-        report.display_description = report.description
     evidence = ReportService.get_evidence_for_report(report_id)
     notes = ReportService.get_investigation_notes(report_id)
     history = ReportService.get_report_audit_history(report_id)

@@ -44,10 +44,6 @@ services:
       FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
       FLASK_ENV:            production
       CLAMD_HOST:           clamav
-      # Brevo SMTP — required for login/registration 2FA OTP email delivery.
-      # Without these the app boots with no mail config, MAIL_USERNAME is empty,
-      # and every OTP send fails silently (email_service returns False), so
-      # whistleblowers never receive a login code.
       MAIL_SERVER:          ${MAIL_SERVER:-smtp-relay.brevo.com}
       MAIL_PORT:            ${MAIL_PORT:-587}
       MAIL_USE_TLS:         ${MAIL_USE_TLS:-true}
@@ -56,13 +52,6 @@ services:
       MAIL_DEFAULT_SENDER:  ${MAIL_DEFAULT_SENDER:-noreply@sitinform.sit.singaporetech.edu.sg}
     expose:
       - "5000"
-    volumes:
-      # Persist the ECDSA audit-signing key (instance/ecdsa_key.pem) across
-      # container rebuilds. Without this, `up --build` regenerates the key on
-      # every deploy, so audit rows signed by the previous key fail the
-      # integrity check. Postgres rows persist via postgres_data, so the key
-      # must persist too or the two drift apart.
-      - web_instance:/app/instance
     networks:
       - backend
 
@@ -135,4 +124,3 @@ volumes:
   splunk_data:
   splunk_etc:
   clamav_data:
-  web_instance:

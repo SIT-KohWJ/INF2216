@@ -1,83 +1,83 @@
 {% extends "base.html" %}
 {% block title %}Account Settings - SITinform{% endblock %}
 {% block content %}
-<div class="register-page">
-    <div class="register-page__shell">
-        <div class="register-panel">
-            <div class="register-panel__hero">
-                <div class="register-panel__hero-icon">
-                    <i class="fas fa-user-circle"></i>
-                </div>
-                <div>
-                    <h1 class="register-panel__title">Account Settings</h1>
-                    <p class="register-panel__subtitle mb-0">Manage your account information and security.</p>
-                </div>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <h2 class="mb-4"><i class="fas fa-user-circle"></i> Account Settings</h2>
+
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-id-card"></i> Account Information</h5>
             </div>
-
-            <div class="register-panel__body">
-                <section class="account-section">
-                    <h2 class="account-section__title"><i class="fas fa-id-card"></i> Account Information</h2>
-                    <dl class="row mb-0">
-                        <dt class="col-sm-4">Email</dt>
-                        <dd class="col-sm-8">{{ current_user.email }}</dd>
-                        <dt class="col-sm-4">Role</dt>
-                        <dd class="col-sm-8"><span class="badge bg-secondary text-uppercase">{{ current_user.role.replace('_', ' ') }}</span></dd>
-                        <dt class="col-sm-4">Member since</dt>
-                        <dd class="col-sm-8">{{ current_user.created_at.strftime('%d %b %Y') if current_user.created_at else 'N/A' }}</dd>
-                    </dl>
-                </section>
-
-                {% if current_user.role == 'whistleblower' %}
-                <section class="account-section">
-                    <h2 class="account-section__title"><i class="fas fa-bell"></i> Notifications</h2>
-                    <div class="account-row">
-                        <span>
-                            {% if unread_notifications %}
-                            You have <strong>{{ unread_notifications }}</strong> unread notification(s).
-                            {% else %}
-                            You have no unread notifications.
-                            {% endif %}
-                        </span>
-                        <a href="{{ url_for('reports.notifications') }}" class="btn btn-outline-primary btn-sm">View Notifications</a>
-                    </div>
-                </section>
-                {% endif %}
-
-                <section class="account-section">
-                    <h2 class="account-section__title"><i class="fas fa-shield-alt"></i> Security</h2>
-                    <div class="account-row">
-                        <div>
-                            <strong>Password</strong>
-                            <div class="text-muted small">Change the password used to sign in.</div>
-                        </div>
-                        <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline-primary btn-sm">Change Password</a>
-                    </div>
-                    <div class="account-row">
-                        <div>
-                            <strong>Active session</strong>
-                            <div class="text-muted small">End your current session and require signing in again.</div>
-                        </div>
-                        <form method="POST" action="{{ url_for('auth.logout_all') }}" data-confirm="End your active session? You will be logged out.">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-outline-warning btn-sm">Log Out Everywhere</button>
-                        </form>
-                    </div>
-                </section>
-
-                {% if current_user.role == 'whistleblower' %}
-                <section class="account-section account-section--danger">
-                    <h2 class="account-section__title"><i class="fas fa-exclamation-triangle"></i> Danger Zone</h2>
-                    <div class="account-row">
-                        <div>
-                            <strong>Delete account</strong>
-                            <div class="text-muted small">Your reports and audit records stay preserved and anonymous.</div>
-                        </div>
-                        <a href="{{ url_for('auth.delete_account') }}" class="btn btn-danger btn-sm">Delete Account</a>
-                    </div>
-                </section>
-                {% endif %}
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Email</dt>
+                    <dd class="col-sm-8">{{ current_user.email }}</dd>
+                    <dt class="col-sm-4">Role</dt>
+                    <dd class="col-sm-8"><span class="badge bg-secondary text-uppercase">{{ current_user.role.replace('_', ' ') }}</span></dd>
+                    <dt class="col-sm-4">Member since</dt>
+                    <dd class="col-sm-8">{{ current_user.created_at.strftime('%d %b %Y') if current_user.created_at else 'N/A' }}</dd>
+                </dl>
             </div>
         </div>
+
+        {% if current_user.role == 'whistleblower' %}
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bell"></i> Notifications</h5>
+            </div>
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <span>
+                    {% if unread_notifications %}
+                    You have <strong>{{ unread_notifications }}</strong> unread notification(s).
+                    {% else %}
+                    You have no unread notifications.
+                    {% endif %}
+                </span>
+                <a href="{{ url_for('reports.notifications') }}" class="btn btn-outline-primary btn-sm">View Notifications</a>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Security</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>Password</strong>
+                        <div class="text-muted small">Change the password used to sign in.</div>
+                    </div>
+                    <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline-primary btn-sm">Change Password</a>
+                </div>
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>Active session</strong>
+                        <div class="text-muted small">End your current session and require signing in again.</div>
+                    </div>
+                    <form method="POST" action="{{ url_for('auth.logout_all') }}" data-confirm="End your active session? You will be logged out.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-warning btn-sm">Log Out Everywhere</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        {% if current_user.role == 'whistleblower' %}
+        <div class="card shadow border-danger mb-4">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Danger Zone</h5>
+            </div>
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>Delete account</strong>
+                    <div class="text-muted small">Your reports and audit records stay preserved and anonymous.</div>
+                </div>
+                <a href="{{ url_for('auth.delete_account') }}" class="btn btn-danger btn-sm">Delete Account</a>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

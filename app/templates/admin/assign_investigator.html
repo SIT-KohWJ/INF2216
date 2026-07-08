@@ -1,46 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Assign Investigator - SITinform{% endblock %}
 {% block content %}
-<div class="register-page">
-    <div class="register-page__shell register-page__shell--compact">
-        <div class="register-panel">
-            <div class="register-panel__hero">
-                <div class="register-panel__hero-icon">
-                    <i class="fas fa-user-plus"></i>
-                </div>
-                <div>
-                    <h1 class="register-panel__title">Assign Investigator</h1>
-                    <p class="register-panel__subtitle mb-0">Assign a case to an investigator.</p>
-                </div>
-            </div>
-
-            <div class="register-panel__body">
-                <p class="auth-page-copy">
-                    Report: <span class="auth-highlight"><code>{{ report.reference_number }}</code></span>
-                    &mdash; {{ report.display_title if report.display_title is defined else report.title }}
-                </p>
-
-                <form method="POST" novalidate>
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark"><h4 class="mb-0"><i class="fas fa-user-plus"></i> Assign Investigator</h4></div>
+            <div class="card-body">
+                <p>Report: <code>{{ report.reference_number }}</code> - {{ report.display_title if report.display_title is defined else report.title }}</p>
+                <form method="POST">
                     {{ form.hidden_tag() }}
-
-                    <div class="register-field">
-                        <label for="{{ form.investigator.id }}" class="register-label">
-                            <i class="fas fa-user-secret"></i>
-                            <span>{{ form.investigator.label.text }}</span>
-                        </label>
-                        {{ form.investigator(class="form-select register-input") }}
-                    </div>
-
-                    <div class="d-grid">
-                        {{ form.submit(class="btn register-submit-btn") }}
-                    </div>
+                    <div class="mb-3">{{ form.investigator.label(class="form-label") }} {{ form.investigator(class="form-select") }}</div>
+                    <div class="d-grid">{{ form.submit(class="btn btn-warning") }}</div>
                 </form>
-
-                <div class="register-divider"><span>or</span></div>
-
-                <p class="register-login-copy mb-0">
-                    <a href="{{ url_for('admin.manage_reports') }}" class="register-login-link"><i class="fas fa-arrow-left me-1"></i> Back to Reports</a>
-                </p>
             </div>
         </div>
     </div>

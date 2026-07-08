@@ -1,20 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Request Account Deletion - SITinform{% endblock %}
 {% block content %}
-<div class="register-page">
-    <div class="register-page__shell register-page__shell--compact">
-        <div class="register-panel">
-            <div class="register-panel__hero">
-                <div class="register-panel__hero-icon">
-                    <i class="fas fa-trash-alt"></i>
-                </div>
-                <div>
-                    <h1 class="register-panel__title">Request Account Deletion</h1>
-                    <p class="register-panel__subtitle mb-0">A System Administrator must review and approve your request.</p>
-                </div>
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="fas fa-trash-alt"></i> Request Account Deletion</h4>
             </div>
-
-            <div class="register-panel__body">
+            <div class="card-body">
                 <div class="alert alert-warning">
                     <strong>Note:</strong> A System Administrator must review and approve your request.
                 </div>
@@ -25,21 +18,17 @@
                     <li>On approval, your personal information is removed</li>
                     <li>Your submitted reports and audit logs are <strong>preserved</strong> and remain anonymous</li>
                 </ul>
-
                 <form method="POST" action="{{ url_for('auth.delete_account') }}" data-confirm="Submit an account deletion request? You will be logged out immediately.">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="d-grid">
+                    <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-danger btn-lg">
-                            <i class="fas fa-paper-plane me-1"></i> Request Deletion
+                            <i class="fas fa-paper-plane"></i> Request Deletion
                         </button>
                     </div>
                 </form>
-
-                <div class="register-divider"><span>or</span></div>
-
-                <p class="register-login-copy mb-0">
-                    <a href="{{ url_for('reports.dashboard') }}" class="register-login-link"><i class="fas fa-arrow-left me-1"></i> Cancel and go back</a>
-                </p>
+                <div class="mt-3 text-center">
+                    <a href="{{ url_for('reports.dashboard') }}" class="btn btn-secondary">Cancel</a>
+                </div>
             </div>
         </div>
     </div>
